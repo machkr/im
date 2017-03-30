@@ -118,6 +118,8 @@ class database():
 
 if __name__ == "__main__":
 	db = database()
+	
+	# Testing functionality
 	db.create_user('matthew', 'password')
 	db.login('matthew', 'password')
 	db.login('matthew1', 'password')
