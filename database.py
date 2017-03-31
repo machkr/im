@@ -1,3 +1,4 @@
+from binascii import hexlify
 from bcrypt import hashpw, checkpw, gensalt
 from os import urandom
 import pymysql as mysql
@@ -33,7 +34,8 @@ class database():
 			# Retrieve result of procedure
 			result = self.cursor.fetchone()
 
-			if result[0] == 'TRUE': # Success
+			# Success
+			if result[0] == 'TRUE':
 
 				# Success message
 				print("User created successfully.")
@@ -44,11 +46,13 @@ class database():
 				# Return result
 				return True
 
-			else: # Failure
+			# Failure
+			else:
 
 				# Raise exception
 				raise ValueError("Username already exists.")
 
+		# Catch any exception raised
 		except Exception as exception:
 
 			# Print exception
@@ -67,7 +71,8 @@ class database():
 			# Retrieve result from procedure
 			result = self.cursor.fetchone()
 
-			if result[0] == 'TRUE': # User exists
+			# User exists
+			if result[0] == 'TRUE':
 				
 				# Get corresponding password hash
 				self.cursor.callproc('get_password', (username,))
@@ -90,16 +95,19 @@ class database():
 					# Return result
 					return True
 
-				else: # Password hashes don't match
+				# Password hashes don't match
+				else:
 
 					# Raise exception
 					raise ValueError("Incorrect password.")
 
-			elif result[0] == 'FALSE': # User does not exist
+			# User does not exist
+			elif result[0] == 'FALSE': 
 
 				# Raise exception
 				raise ValueError("User does not exist.")
 
+		# Catch any exception raised
 		except Exception as exception:
 
 			# Print exception
@@ -108,19 +116,130 @@ class database():
 			# Return result
 			return False
 
-	def generate(self, username_x, username_y):
-		"""Generates a new key"""
+	def establish(self, username_x, username_y):
+		"""Establishes a conversation and key between users (for encryption/sending)"""
 
-		return urandom(7)
+		try:
+			# Check if users exist
+			self.cursor.callproc('check_users', (username_x, username_y,))
+
+			# Retrieve result from procedure
+			result = self.cursor.fetchone()
+
+			# Users exist
+			if result[0] == 'TRUE':
+
+				# Get conversation id if a conversation between them exists
+				self.cursor.callproc('get_conversation_id', (username_x, username_y,))
+
+				# Retrieve result from procedure
+				result = self.cursor.fetchone()
+
+				# Conversation exists
+				if result[0] != '':
+
+					# Get key corresponding to conversation
+					self.cursor.callproc('get_key', (result[0],))
+
+					# Retrieve result from procedure
+					result = self.cursor.fetchone()
+
+					# Return key
+					return result[0]
+
+				# Conversation does not exist
+				else:
+
+					# Generate conversation id
+					id = hexlify(urandom(1))
+
+					# Generate shared key
+					key = hexlify(urandom(7))
+
+					# Create conversation between users
+					self.cursor.callproc('create_conversation', (id, username_x, username_y, key,))
+
+					# Return key
+					return key
+
+			# One or both users do not exist
+			else:
+
+				# Raise exception
+				raise ValueError("User does not exist.")
+
+		# Catch any exception raised
+		except Exception as exception:
+
+			# Print exception
+			print(exception)
+
+			# Return result
+			return None
+
 
 	def retrieve(self, username_x, username_y):
-		"""Retrieves a stored key"""
+		"""Retrieves a stored key (for decryption/receiving)"""
+
+		try:
+			# Check if users exist
+			self.cursor.callproc('check_users', (username_x, username_y,))
+
+			# Retrieve result from procedure
+			result = self.cursor.fetchone()
+
+			# Users exist
+			if result[0] == 'TRUE':
+
+				# Get conversation id if a conversation between them exists
+				self.cursor.callproc('get_conversation_id', (username_x, username_y,))
+
+				# Retrieve result from procedure
+				result = self.cursor.fetchone()
+
+				# Conversation exists
+				if result[0] != '':
+
+					# Get key corresponding to conversation
+					self.cursor.callproc('get_key', (result[0],))
+
+					# Retrieve result from procedure
+					result = self.cursor.fetchone()
+
+					# Return key
+					return result[0]
+
+				# Conversation does not exist
+				else:
+
+					# Raise exception
+					raise ValueError("Conversation does not exist.")
+
+			# One or both users do not exist
+			else:
+
+				# Raise exception
+				raise ValueError("User does not exist.")
+
+		# Catch any exception raised
+		except Exception as exception:
+
+			# Print exception
+			print(exception)
+
+			# Return result
+			return None
 
 if __name__ == "__main__":
 	db = database()
 	
 	# Testing functionality
 	db.create_user('matthew', 'password')
-	db.login('matthew', 'password')
-	db.login('matthew1', 'password')
-	db.login('matthew', 'password1')
+	db.create_user('sterling', 'password')
+	key = db.establish('matthew', 'sterling')
+	print(key)
+	# db.login('matthew', 'password')
+	# db.login('matthew1', 'password')
+	# db.login('matthew', 'password1')
+
+	# db.generate('alice', 'bob')
