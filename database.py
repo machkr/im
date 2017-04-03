@@ -18,6 +18,7 @@ class database():
 								 	  user = self.user,
 								 	  password = self.password,
 								 	  db = self.db)
+
 		# Database cursor
 		self.cursor = self.database.cursor()
 
@@ -150,14 +151,17 @@ class database():
 				# Conversation does not exist
 				else:
 
-					# Generate conversation id
-					id = hexlify(urandom(1))
+					# Generate conversation id (8 characters/32 bits)
+					id = hexlify(urandom(4))
 
-					# Generate shared key
-					key = hexlify(urandom(7))
+					# Generate shared key (16 characters/64 bits)
+					key = hexlify(urandom(8))
 
 					# Create conversation between users
 					self.cursor.callproc('create_conversation', (id, username_x, username_y, key,))
+
+					# Commit changes to database
+					self.database.commit()
 
 					# Return key
 					return key
@@ -234,12 +238,27 @@ if __name__ == "__main__":
 	db = database()
 	
 	# Testing functionality
+	print("Creating user: Matthew...")
 	db.create_user('matthew', 'password')
-	db.create_user('sterling', 'password')
-	key = db.establish('matthew', 'sterling')
-	print(key)
-	# db.login('matthew', 'password')
-	# db.login('matthew1', 'password')
-	# db.login('matthew', 'password1')
 
-	# db.generate('alice', 'bob')
+	print("Creating user: Sterling...")
+	db.create_user('sterling', 'password')
+
+	print("Logging in user: Matthew...")
+	db.login('matthew', 'password')
+
+	print("Logging in user: Sterling...")
+	db.login('sterling', 'password')
+
+	print("Establishing conversation...")
+	key1 = db.establish('matthew', 'sterling')
+	print("Established Key:", key1)
+	key2 = db.retrieve('matthew', 'sterling')
+	print("Retrieve 'matthew', 'sterling':", key2)
+	key3 = db.retrieve('sterling', 'matthew')
+	print("Retrieve 'sterling', 'matthew':", key3)
+
+	if key1 == key2 and key2 == key3:
+		print("Success")
+	else:
+		print("Failure")
