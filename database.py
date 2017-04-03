@@ -1,6 +1,8 @@
-from binascii import hexlify
+from binascii import hexlify, unhexlify, a2b_hex, b2a_hex
 from bcrypt import hashpw, checkpw, gensalt
+from datetime import datetime, timedelta
 from os import urandom
+import pyDes
 import pymysql as mysql
 
 class database():
@@ -135,21 +137,40 @@ class database():
 
 				# Retrieve result from procedure
 				result = self.cursor.fetchone()
+				conversation_id = result[0]
 
 				# Conversation exists
-				if result[0] != '':
+				if conversation_id != '':
 
 					# Get key corresponding to conversation
-					self.cursor.callproc('get_key', (result[0],))
+					self.cursor.callproc('get_key', (conversation_id,))
 
 					# Retrieve result from procedure
 					result = self.cursor.fetchone()
+					key = result[0]
 
-					# Return key
-					return result[0]
+					# Key expired
+					if (datetime.now() - result[1] > timedelta(seconds=30)):
+						
+						# Generate a new key
+						new_key = hexlify(urandom(8))
+						
+						# Update conversation's key
+						self.cursor.callproc('update_key', (conversation_id, new_key,))
+						
+						# Commit changes to database
+						self.database.commit()
 
-				# Conversation does not exist
-				else:
+						# Return newly-generated key
+						return new_key
+
+					# Key has not expired
+					else: 
+
+						# Return existing key
+						return key	
+
+				else: # Conversation does not exist
 
 					# Generate conversation id (8 characters/32 bits)
 					id = hexlify(urandom(4))
@@ -235,6 +256,8 @@ class database():
 			return None
 
 if __name__ == "__main__":
+
+	# Initialize database
 	db = database()
 	
 	# Testing functionality
@@ -262,3 +285,16 @@ if __name__ == "__main__":
 		print("Success")
 	else:
 		print("Failure")
+
+	# print("Key Length:", len(key1))
+
+	# print("Binary Length:", len(bin(int(key1, 16))[2:]))
+
+	# data = "This is a test of DES."
+
+	# des = pyDes.des(bin(int(key1, 16))[2:])
+	# enc = des.encrypt(data)
+	# dec = des.decrypt(enc)
+
+	# print("Encrypted:", enc)
+	# print("Decrypted:", dec)
