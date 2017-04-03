@@ -202,7 +202,6 @@ class database():
 			# Return result
 			return None
 
-
 	def retrieve(self, username_x, username_y):
 		"""Retrieves a stored key (for decryption/receiving)"""
 
@@ -255,6 +254,24 @@ class database():
 			# Return result
 			return None
 
+	def encrypt(self, key, plaintext):
+		"""Encrypts a given message with a given key using DES"""
+
+		# Configure DES object using key parameter
+		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
+
+		# Encrypt message
+		return des.encrypt(plaintext)
+
+	def decrypt(self, key, ciphertext):
+		"""Decrypts a given ciphertext with a given key using DES"""
+
+		# Configure DES objcet using key parameter
+		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
+
+		# Decrypt message
+		return des.decrypt(ciphertext).decode()
+
 if __name__ == "__main__":
 
 	# Initialize database
@@ -295,24 +312,16 @@ if __name__ == "__main__":
 		print("Key: Failure")
 
 	# DES sample message
-	dat = "This is a test of DES."
+	message = "This is a test of DES encryption."
 
-	# Configuring DES object
-	des = pyDes.des(key1, pad="0", padmode=pyDes.PAD_NORMAL)
+	# DES encryption
+	ciphertext = db.encrypt(key1, message)
 
-	# Encrypting data
-	enc = des.encrypt(dat)
-
-	# Decrypting data
-	dec = des.decrypt(enc).decode()
-
-	# Output
-	print("Plaintext:", dat)
-	print("Encrypted:", enc)
-	print("Decrypted:", dec)
+	# DES decryption
+	decrypted = db.decrypt(key1, ciphertext)
 
 	# Check consistent plaintext/ciphertext
-	if dat == dec:
+	if message == decrypted:
 		print("DES: Success")
 	else:
 		print("DES: Failure")
