@@ -5,5 +5,5 @@ Ensure all of the following packages are installed by executing `pip install <mo
 ```
 bcrypt
 pymysql
-pydes
+pyDes
 ```

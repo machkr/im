@@ -1,4 +1,4 @@
-from binascii import hexlify, unhexlify, a2b_hex, b2a_hex
+from binascii import hexlify, unhexlify
 from bcrypt import hashpw, checkpw, gensalt
 from datetime import datetime, timedelta
 from os import urandom
@@ -149,11 +149,11 @@ class database():
 					result = self.cursor.fetchone()
 					key = result[0]
 
-					# Key expired
+					# If key has expired (30 second expiration)
 					if (datetime.now() - result[1] > timedelta(seconds=30)):
 						
-						# Generate a new key
-						new_key = hexlify(urandom(8))
+						# Generate a new key (8 bytes/64 bits)
+						new_key = urandom(8)
 						
 						# Update conversation's key
 						self.cursor.callproc('update_key', (conversation_id, new_key,))
@@ -172,11 +172,11 @@ class database():
 
 				else: # Conversation does not exist
 
-					# Generate conversation id (8 characters/32 bits)
-					id = hexlify(urandom(4))
+					# Generate conversation id (8 bytes/64 bits)
+					id = urandom(8)
 
-					# Generate shared key (16 characters/64 bits)
-					key = hexlify(urandom(8))
+					# Generate shared key (8 bytes/64 bits)
+					key = urandom(8)
 
 					# Create conversation between users
 					self.cursor.callproc('create_conversation', (id, username_x, username_y, key,))
@@ -261,40 +261,56 @@ if __name__ == "__main__":
 	db = database()
 	
 	# Testing functionality
+	# Creating users
 	print("Creating user: Matthew...")
 	db.create_user('matthew', 'password')
 
 	print("Creating user: Sterling...")
 	db.create_user('sterling', 'password')
 
+	# Logging in users
 	print("Logging in user: Matthew...")
 	db.login('matthew', 'password')
 
 	print("Logging in user: Sterling...")
 	db.login('sterling', 'password')
 
+	# Establishing key
 	print("Establishing conversation...")
 	key1 = db.establish('matthew', 'sterling')
 	print("Established Key:", key1)
+
+	# Retrieving key
 	key2 = db.retrieve('matthew', 'sterling')
 	print("Retrieve 'matthew', 'sterling':", key2)
+
+	# Retrieving key, reversed
 	key3 = db.retrieve('sterling', 'matthew')
 	print("Retrieve 'sterling', 'matthew':", key3)
 
+	# Check consistent keys
 	if key1 == key2 and key2 == key3:
 		print("Success")
 	else:
 		print("Failure")
 
-	# print("Key Length:", len(key1))
+	# DES sample message
+	dat = "This is a test of DES."
 
-	# print("Binary Length:", len(bin(int(key1, 16))[2:]))
+	# Configuring DES object
+	des = pyDes.des(key1, pad="0", padmode=pyDes.PAD_NORMAL)
 
-	# data = "This is a test of DES."
+	# Encrypting data
+	enc = des.encrypt(dat)
 
-	# des = pyDes.des(bin(int(key1, 16))[2:])
-	# enc = des.encrypt(data)
-	# dec = des.decrypt(enc)
+	# Decrypting data
+	dec = des.decrypt(enc).decode()
 
-	# print("Encrypted:", enc)
-	# print("Decrypted:", dec)
+	# Output
+	print("Plaintext:", dat)
+	print("Encrypted:", enc)
+	print("Decrypted:", dec)
+
+	# Check consistent plaintext/ciphertext
+	if dat == dec:
+		print("Success")
