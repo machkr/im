@@ -290,9 +290,9 @@ if __name__ == "__main__":
 
 	# Check consistent keys
 	if key1 == key2 and key2 == key3:
-		print("Success")
+		print("Key: Success")
 	else:
-		print("Failure")
+		print("Key: Failure")
 
 	# DES sample message
 	dat = "This is a test of DES."
@@ -313,4 +313,6 @@ if __name__ == "__main__":
 
 	# Check consistent plaintext/ciphertext
 	if dat == dec:
-		print("Success")
+		print("DES: Success")
+	else:
+		print("DES: Failure")
