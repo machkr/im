@@ -1,4 +1,4 @@
-from binascii import hexlify, unhexlify
+from base64 import b64encode, b64decode
 from bcrypt import hashpw, checkpw, gensalt
 from datetime import datetime, timedelta
 from os import urandom
@@ -260,7 +260,7 @@ class database():
 		# Configure DES object using key parameter
 		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
 
-		# Encrypt message
+		# Encrypt message and return bytestring
 		return des.encrypt(plaintext)
 
 	def decrypt(self, key, ciphertext):
@@ -269,8 +269,18 @@ class database():
 		# Configure DES objcet using key parameter
 		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
 
-		# Decrypt message
+		# Decrypt message and decode bytes into string
 		return des.decrypt(ciphertext).decode()
+
+	def encode(self, bytestring):
+		"""Encodes a bytestring as a base-64 string"""
+
+		return b64encode(bytestring).decode()
+
+	def decode(self, string):
+		"""Decodes a base-64 string as a bytestring"""
+
+		return b64decode(string)
 
 if __name__ == "__main__":
 
@@ -325,3 +335,21 @@ if __name__ == "__main__":
 		print("DES: Success")
 	else:
 		print("DES: Failure")
+
+	# Encoding/Decoding
+	unencoded_bytes = urandom(8)
+
+	# Encode
+	string = db.encode(unencoded_bytes)
+	print("String:", string, ", Type:", type(string))
+
+	# Decode
+	decoded_bytes = db.decode(string)
+	print("Bytestring:", decoded_bytes, ", Type:", type(decoded_bytes))
+
+	# Equivalent
+	if decoded_bytes == unencoded_bytes:
+		print("Matched.")
+	else:
+		print("Mismatched.")
+
