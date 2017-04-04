@@ -5,7 +5,7 @@ from os import urandom
 class DiffieHellman():
 	def __init__(self, generator, prime_group, key_length):
 		"""
-		Generate public and private keys
+		Generate public and private keys.
 		"""
 
 		# Minimum key length
@@ -94,7 +94,7 @@ class DiffieHellman():
 
 	def genrandom(self, num_bits):
 		"""
-		Generate a random number with length of given number of bits.
+		Generate a random number of given length in bits.
 		"""
 
 		# Random number to be generated

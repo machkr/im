@@ -25,7 +25,9 @@ class database():
 		self.cursor = self.database.cursor()
 
 	def create_user(self, username, password):
-		"""Creates and stores a new user"""
+		"""
+		Creates and stores a new user.
+		"""
 
 		try:
 			# Generate password hash
@@ -65,7 +67,9 @@ class database():
 			return False
 
 	def login(self, username, password):
-		"""Authenticates a user"""
+		"""
+		Authenticates a user
+		"""
 
 		try:
 			# Check if user exists
@@ -120,7 +124,10 @@ class database():
 			return False
 
 	def establish(self, username_x, username_y):
-		"""Establishes a conversation and key between users (for encryption/sending)"""
+		"""
+		Establishes a conversation and key between users.
+		To be used for encryption and sending messages.
+		"""
 
 		try:
 			# Check if users exist
@@ -203,7 +210,10 @@ class database():
 			return None
 
 	def retrieve(self, username_x, username_y):
-		"""Retrieves a stored key (for decryption/receiving)"""
+		"""
+		Retrieves a stored key for a conversation.
+		To be used for decryption and receiving messages.
+		"""
 
 		try:
 			# Check if users exist
@@ -255,7 +265,9 @@ class database():
 			return None
 
 	def encrypt(self, key, plaintext):
-		"""Encrypts a given message with a given key using DES"""
+		"""
+		Encrypts a given plaintext with a given key using DES.
+		"""
 
 		# Configure DES object using key parameter
 		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
@@ -264,7 +276,9 @@ class database():
 		return des.encrypt(plaintext)
 
 	def decrypt(self, key, ciphertext):
-		"""Decrypts a given ciphertext with a given key using DES"""
+		"""
+		Decrypts a given ciphertext with a given key using DES.
+		"""
 
 		# Configure DES objcet using key parameter
 		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
@@ -273,12 +287,16 @@ class database():
 		return des.decrypt(ciphertext).decode()
 
 	def encode(self, bytestring):
-		"""Encodes a bytestring as a base-64 string"""
+		"""
+		Encodes a bytestring as a base-64 string.
+		"""
 
 		return b64encode(bytestring).decode()
 
 	def decode(self, string):
-		"""Decodes a base-64 string as a bytestring"""
+		"""
+		Decodes a base-64 string as a bytestring.
+		"""
 
 		return b64decode(string)
 
