@@ -2,10 +2,9 @@ import socket
 import sys
 import threading
 import time
-from database import *
 import os
 from base64 import b64encode, b64decode
-
+from database import *
 
 IP = '127.0.0.1'
 PORT = 8888
