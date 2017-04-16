@@ -28,7 +28,7 @@ def main():
 
 	while True:
 		(client_socket, address) = server_socket.accept()
-		print('[S]: Connection received from', address, '.')
+		print('[S]: Connection received from ', address, '.', sep='')
 
 		client_thread = threading.Thread(target=client_connection, args=(client_socket,address))
 		client_thread.start()
@@ -49,7 +49,7 @@ def client_connection(sock, addr):
 			destination = data_split[1][2:].strip()
 			message = data_split[2][5:].strip()
 			sid = data_split[3][4:].strip()
-			print('[S]: Source:', source, 'Destination:', destination, 'Message:', message, 'SID:', sid)
+			print('[S]: Source: ', source, ', Destination: ', destination, ', Message: ', message, ', SID: ', sid, sep='')
 
 			if sid == '0' and message == 'init':
 				#add username and socket to dictionairy for each message received
