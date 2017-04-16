@@ -4,13 +4,10 @@ import threading
 import time
 from contextlib import suppress
 from database import *
-from base64 import b64encode, b64decode
-
 
 #dict mappting usernames to their respective sockets
 connected_users = {'server':None}
 connections = {('server', 'server'):True}
-passwords = {'alice':'123', 'mike':'123', 'sterling':'applesauce', 'matt':'password'}
 db = database()
 
 def main():
@@ -31,7 +28,7 @@ def main():
 
 	while True:
 		(client_socket, address) = server_socket.accept()
-		print('[S]: Connection received from ', address, '.')
+		print('[S]: Connection received from', address, '.')
 
 		client_thread = threading.Thread(target=client_connection, args=(client_socket,address))
 		client_thread.start()
@@ -52,7 +49,7 @@ def client_connection(sock, addr):
 			destination = data_split[1][2:].strip()
 			message = data_split[2][5:].strip()
 			sid = data_split[3][4:].strip()
-			print('[S]: Source: ', source, ' Destination: ', destination, ' Message: ', message, 'SID: ', sid)
+			print('[S]: Source:', source, 'Destination:', destination, 'Message:', message, 'SID:', sid)
 
 			if sid == '0' and message == 'init':
 				#add username and socket to dictionairy for each message received
@@ -72,11 +69,11 @@ def client_connection(sock, addr):
 
 			if is_user_connected(destination) and destination != 'server':
 				connected_users[destination].sendall(str.encode('s:' + source + '!!' + 'd:' + destination + '!!' + 'data:' + message + '!!sid:9'))
-				print('[S]: Data from ', source, ' sent to ', destination)
+				print('[S]: Data from', source, 'sent to', destination)
 			elif destination == 'server':
 				pass
 			else:
-				print('[S]: Data from ', source, ' NOT sent to ', destination, ' because destination not connected.')
+				print('[S]: Data from', source, 'NOT sent to', destination, 'because destination not connected.')
 				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:data not sent user not online' + '!!sid:9'))
 
 		except Exception as e:
@@ -113,8 +110,8 @@ def print_connected_users():
 	'''
 
 	while True:
-		print('[S]:' + str(connected_users.keys()))
-		print('[S]:' + str(connections.keys()))
+		print('[S]:', str(connected_users.keys()))
+		print('[S]:', str(connections.keys()))
 		time.sleep(10)
 
 def assign_keys():
@@ -126,13 +123,12 @@ def assign_keys():
 				destination = connection[1]
 
 				key = (db.establish(source, destination))
-				encoded = b64encode(key)
-				key = encoded.decode()
+				encoded = db.encode(key)
 
-				print('[S]: Generated key for ', source, ' and ', destination, ': ', key)
+				print('[S]: Generated key for', source, 'and', destination, ':', encoded)
 
-				connected_users[source].sendall(('s:server!!d:' + source + '!!data:KEYGEN-' + key + '!!sid:9999').encode())
-				connected_users[destination].sendall(('s:server!!d:' + destination + '!!data:KEYGEN-' + key + '!!sid:9999').encode())
+				connected_users[source].sendall(('s:server!!d:' + source + '!!data:KEYGEN-' + encoded + '!!sid:9999').encode())
+				connected_users[destination].sendall(('s:server!!d:' + destination + '!!data:KEYGEN-' + encoded + '!!sid:9999').encode())
 
 				connections[connection] = True
 

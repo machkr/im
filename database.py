@@ -43,7 +43,7 @@ class database():
 			if result[0] == 'TRUE':
 
 				# Success message
-				print("User created successfully.")
+				print("[C]: User created successfully.")
 
 				# Commit changes to database
 				self.database.commit()
@@ -61,7 +61,7 @@ class database():
 		except Exception as exception:
 
 			# Print exception
-			print(exception)
+			print('[C]:', exception)
 
 			# Return result
 			return False
@@ -94,7 +94,7 @@ class database():
 					self.cursor.callproc('login', (username,))
 					
 					# Success message
-					print("User logged in successfully.")
+					print("[C]: User logged in successfully.")
 
 					# Commit changes to database
 					self.database.commit()
@@ -111,14 +111,17 @@ class database():
 			# User does not exist
 			elif result[0] == 'FALSE': 
 
-				# Raise exception
-				raise ValueError("User does not exist.")
+				# Create new user with this username and password
+				self.create_user(username, password)
+
+				# Return result
+				return True
 
 		# Catch any exception raised
 		except Exception as exception:
 
 			# Print exception
-			print(exception)
+			print('[C]:', exception)
 
 			# Return result
 			return False
@@ -204,7 +207,7 @@ class database():
 		except Exception as exception:
 
 			# Print exception
-			print(exception)
+			print('[S]:', exception)
 
 			# Return result
 			return None

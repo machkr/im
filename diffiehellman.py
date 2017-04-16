@@ -217,9 +217,9 @@ class DiffieHellman():
 if __name__ == "__main__":
 
 	# Parameters for key exchange (would need to be exchanged)
-	pub_gen = 5
-	pub_grp = 18
-	key_len = 256
+	pub_gen = 5		# Could be 2, 3, 5, or 7
+	pub_grp = 18	# Could be 5, 14, 15, 16, 17, or 18
+	key_len = 256	# Could be anything greater than or equal to 180
 
 	# Generating public/private keys using negotiated parameters
 	alice = DiffieHellman(pub_gen, pub_grp, key_len)
