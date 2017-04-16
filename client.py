@@ -26,14 +26,14 @@ def main():
 
 	print('[C]: Authentication successful.')
 
-	print('[C]: Attempting to connect to remote server')
+	print('[C]: Attempting to connect to remote server.')
 	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 	try:
 		client_socket.connect((IP, PORT))
 		print('[C]: Connection successful.')
 	except:
-		print('[C]: Could not connect to', IP, ':', PORT)
+		print('[C]: Could not connect to ', IP, ':', PORT, '.', sep='')
 		sys.exit()
 
 	destination = input('[C]: Destination username: ')
@@ -58,7 +58,7 @@ def input_thread(sock, username, destination):
 
 		if data == 'exit':
 			break
-		data_encrypted = db.encrypt(b64decode((MASTER_KEY)), data)
+		data_encrypted = db.encrypt(db.decode(MASTER_KEY), data)
 		message = db.encode(data_encrypted)
 
 		sock.sendall(('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + message + '!!sid:9').encode())
@@ -92,7 +92,7 @@ def recv_thread(sock):
 				DESTINATION_LOGGED_IN = True
 			if message[0:6] == 'KEYGEN':
 				MASTER_KEY = message[7:]
-				print('[C]: Received a key for communication: ', MASTER_KEY)
+				print('[C]: Received a key for communication:', MASTER_KEY)
 				continue
 
 		except Exception as e:
