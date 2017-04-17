@@ -1,34 +1,31 @@
-import socket
-import sys
-import threading
-import time
+from base64 import b64encode, b64decode
 from contextlib import suppress
 from database import *
-from base64 import b64encode, b64decode
+import threading
+import socket
+import time
+import sys
 
-
-#dict mappting usernames to their respective sockets
-connected_users = {'server':None}
-connections = {('server', 'server'):True}
-passwords = {'alice':'123', 'mike':'123', 'sterling':'applesauce', 'matt':'password'}
+connected_users = {'server':None} #mapping of usernames to sockets
+connections = {('server', 'server'):True} #mapping of connections between users, and whether or not they have an assigned key
+passwords = {'alice':'123', 'mike':'123', 'sterling':'password', 'matt':'password'} #mapping of usernames to passwords
 db = database()
 
 def main():
 	print('[S]: Initializing server.')
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-	print('[S]: Socket created.')
 	server_socket.bind(('localhost', 8888))
-
-	print('[S]: Socket bound.')
 	server_socket.listen(10)
 
+	#thread to handle the printing of connected users
 	user_list_thread = threading.Thread(target=print_connected_users)
 	user_list_thread.start()
 
+	#thread to handle key assignments
 	key_assignment_thread = threading.Thread(target=assign_keys)
 	key_assignment_thread.start()
 
+	#loop to handle client connections
 	while True:
 		(client_socket, address) = server_socket.accept()
 		print('[S]: Connection received from ', address, '.')
@@ -45,31 +42,41 @@ def client_connection(sock, addr):
 				break
 
 			#data parsing
-			data = data.decode()
-			data.strip()
-			data_split = data.split('!!')
-			source = data_split[0][2:].strip()
-			destination = data_split[1][2:].strip()
-			message = data_split[2][5:].strip()
-			sid = data_split[3][4:].strip()
+			data = data.decode().strip().split('!!')
+
+			source = data[0][2:].strip()
+			destination = data[1][2:].strip()
+			message = data[2][5:].strip()
+			sid = data[3][4:].strip()
+
 			print('[S]: Source: ', source, ' Destination: ', destination, ' Message: ', message, 'SID: ', sid)
 
-			if sid == '0' and message == 'init':
-				#add username and socket to dictionairy for each message received
-				add_new_connection(source, sock)
+			#if this is an initialization message
+			if sid == '0':
+				message_verification = xor('init', passwords[source])
 
-				if is_user_connected(destination):
-					connections[(source,destination)] = False
+				#if the user is authentic
+				if message == message_verification:
+					#add username and socket to dictionairy for each message received
+					add_new_connection(source, sock)
 
-				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:ack_init' +  '!!sid:1'))
-				time.sleep(1)
-				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:ack_init' +  '!!sid:2'))
+					#if  the destination user is connected
+					if is_user_connected(destination):
+						connections[(source,destination)] = False #create the connection between the two users
 
+					#send responses to the authenticated user
+					print('[S]: User authenticated. Sending responses')
+					sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:ack_init' +  '!!sid:1'))
+					time.sleep(1)
+					sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:ack_init' +  '!!sid:2'))
+				else:
+					print('[S]: User is attempting to authenticate with an invalid password')
+					sock.close()
+			else:
+				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:data not sent user not online' + '!!sid:9'))
 
-			#send message to destination if the destination is connected, and is not the server itself
-			#the server itself is exluded, as an initial message is always sent to the server as a 'login'
-			#message after a client authenticates
-
+			#if the destination user is connected, and the destination is not the server itself
+			#retrieve the destination user's socket, forward the data
 			if is_user_connected(destination) and destination != 'server':
 				connected_users[destination].sendall(str.encode('s:' + source + '!!' + 'd:' + destination + '!!' + 'data:' + message + '!!sid:9'))
 				print('[S]: Data from ', source, ' sent to ', destination)
@@ -80,38 +87,27 @@ def client_connection(sock, addr):
 				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:data not sent user not online' + '!!sid:9'))
 
 		except Exception as e:
-			print("[S]: User logged out.")
-
+			print("[S]: User logged out:", e)
+			'''
 			with suppress(Exception):
 				for key in connected_users.keys():
 					if connected_users[key] == sock:
 						del connected_users[key]
+			'''
 			break
 
 	sock.close()
 
 def is_user_connected(username):
-	'''
-	Check if user is connected to the server
-	'''
-
 	if username in connected_users:
 		return True
 	else:
 		return False
 
 def add_new_connection(username, sock):
-	'''
-	Add new connection to list of connections to the server
-	'''
-
 	connected_users[username] = sock
 
 def print_connected_users():
-	'''
-	Continuously print logged in users
-	'''
-
 	while True:
 		print('[S]:' + str(connected_users.keys()))
 		print('[S]:' + str(connections.keys()))
@@ -131,10 +127,23 @@ def assign_keys():
 
 				print('[S]: Generated key for ', source, ' and ', destination, ': ', key)
 
-				connected_users[source].sendall(('s:server!!d:' + source + '!!data:KEYGEN-' + key + '!!sid:9999').encode())
-				connected_users[destination].sendall(('s:server!!d:' + destination + '!!data:KEYGEN-' + key + '!!sid:9999').encode())
+				key_source = xor(key, passwords[source])
+				key_destination = xor(key, passwords[destination])
+
+				connected_users[source].sendall(('s:server!!d:' + source + '!!data:KEYGEN-' + key_source + '!!sid:9999').encode())
+				connected_users[destination].sendall(('s:server!!d:' + destination + '!!data:KEYGEN-' + key_destination + '!!sid:9999').encode())
 
 				connections[connection] = True
+
+def xor(data, key):
+	data_len = len(data)
+	key_len = len(key)
+
+	if data_len > key_len:
+		key = key + ('0'*(data_len - key_len))
+	elif data_len < key_len:
+		key = key[0:data_len]
+	return ''.join([chr(ord(one) ^ ord(two)) for (one, two) in zip(data, key)])
 
 if __name__ == '__main__':
 	main()

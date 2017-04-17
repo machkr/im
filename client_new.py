@@ -1,28 +1,35 @@
-import socket
-import sys
-import threading
-import time
-import os
 from base64 import b64encode, b64decode
 from database import *
+import threading
+import socket
+import time
+import sys
+import os
 
+#server connection variables
 IP = '127.0.0.1'
 PORT = 8888
-SERVER_AUTHENTICATED = False
-LOGGED_IN = False
+
+#global variables
 DESTINATION_LOGGED_IN = False
-db = database()
+SERVER_AUTHENTICATED = False
 MASTER_KEY = None
+LOGGED_IN = False
+PASSWORD = ''
+
+db = database()
 
 def main():
 	global LOGGED_IN
 	global SERVER_AUTHENTICATED
 	global DESTINATION_LOGGED_IN
+	global PASSWORD
 
 	while not LOGGED_IN:
 		username = input('[C]: Username: ')
 		password = input('[C]: Password: ')
 		LOGGED_IN = database.login(db, username, password)
+		PASSWORD = password
 
 	print('[C]: Authentication successful.')
 
@@ -38,13 +45,14 @@ def main():
 
 	destination = input('[C]: Destination username: ')
 
-	#client_socket.sendall(str.encode('s:' + username + '+d:' + destination + '+data:init+sid:0'))
-
 	thread_receive = threading.Thread(target=recv_thread, args=(client_socket,))
 	thread_receive.start()
 
 	while (not SERVER_AUTHENTICATED) and (not DESTINATION_LOGGED_IN):
-		client_socket.sendall(str.encode('s:' + username + '!!d:' + destination + '!!data:init!!sid:0'))
+		#XOR message
+		message = xor('init', PASSWORD)
+
+		client_socket.sendall(str.encode('s:' + username + '!!d:' + destination + '!!data:' + message + '!!sid:0'))
 		time.sleep(5)
 
 	thread_input = threading.Thread(target=input_thread, args=(client_socket, username, destination))
@@ -58,9 +66,8 @@ def input_thread(sock, username, destination):
 
 		if data == 'exit':
 			break
-		data_encrypted = db.encrypt(b64decode((MASTER_KEY)), data)
-		data_encrypted = b64encode(data_encrypted)
-		message = data_encrypted.decode()
+
+		message = b64encode(db.encrypt(b64decode((MASTER_KEY)), data)).decode()
 
 		sock.sendall(('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + message + '!!sid:9').encode())
 
@@ -79,36 +86,57 @@ def recv_thread(sock):
 			data = sock.recv(4096)
 
 			#data parsing
-			data = data.decode()
-			data.strip()
-			data_split = data.split('!!')
-			source = data_split[0][2:].strip()
-			destination = data_split[1][2:].strip()
-			message = data_split[2][5:].strip()
-			sid = data_split[3][4:].strip()
+			data = data.decode().strip().split('!!')
 
+			source = data[0][2:].strip()
+			destination = data[1][2:].strip()
+			message = data[2][5:].strip()
+			sid = data[3][4:].strip()
+
+			#check if the server is authenticated
 			if sid == '1' and message == 'ack_init':
 				SERVER_AUTHENTICATED = True
+
+			#check if destination user is online
 			if sid == '2' and message == 'true':
 				DESTINATION_LOGGED_IN = True
+
+			#check for an exchanged key
 			if message[0:6] == 'KEYGEN':
-				MASTER_KEY = message[7:]
+				print('DEBUG:', message)
+
+				MASTER_KEY = xor(message[7:], PASSWORD)
+
+				if (len(MASTER_KEY) % 4) != 0:
+					MASTER_KEY = MASTER_KEY + '='
+
 				print('[C]: Received a key for communication: ', MASTER_KEY)
 				continue
 
 		except Exception as e:
 			print('[C]: Connection with server lost. Aborting program.')
-			print(e)
 			sys.exit()
 
 		if data != "" or data:
-			
 			if MASTER_KEY:
-				message = b64decode(message) #bytes
-				decrypted = db.decrypt(b64decode((MASTER_KEY)), message)
-
-				print('[' + source + ']: ' + decrypted)
+				try:
+					message = b64decode(message)
+					decrypted = db.decrypt(b64decode((MASTER_KEY)), message)
+					print('[' + source + ']: ' + decrypted)
+				except:
+					pass
 			else:
 				print('[' + source + ']: ' + message)
 
-main()
+def xor(data, key):
+	data_len = len(data)
+	key_len = len(key)
+
+	if data_len > key_len:
+		key = key + ('0'*(data_len - key_len))
+	elif data_len < key_len:
+		key = key[0:data_len]
+	return ''.join([chr(ord(one) ^ ord(two)) for (one, two) in zip(data, key)])
+
+if __name__ == '__main__':
+	main()
