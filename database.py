@@ -43,7 +43,7 @@ class database():
 			if result[0] == 'TRUE':
 
 				# Success message
-				print("[C]: User created successfully.")
+				print("[CLIENT]: User created successfully.")
 
 				# Commit changes to database
 				self.database.commit()
@@ -61,7 +61,7 @@ class database():
 		except Exception as exception:
 
 			# Print exception
-			print('[C]:', exception)
+			print('[CLIENT]:', exception)
 
 			# Return result
 			return False
@@ -94,7 +94,7 @@ class database():
 					self.cursor.callproc('login', (username,))
 					
 					# Success message
-					print("[C]: User logged in successfully.")
+					print("[CLIENT]: User logged in successfully.")
 
 					# Commit changes to database
 					self.database.commit()
@@ -211,7 +211,7 @@ class database():
 		except Exception as exception:
 
 			# Print exception
-			print('[S]:', exception)
+			print('[SERVER]:', exception)
 
 			# Return result
 			return None
@@ -278,22 +278,28 @@ class database():
 		Encrypts a given plaintext with a given key using DES.
 		"""
 
-		# Configure DES object using key parameter
-		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
+		# Decode key
+		key = self.decode(key)
+
+		# Configure Single-DES object using key parameter
+		des = pyDes.des(key, padmode=pyDes.PAD_PKCS5)
 
 		# Encrypt message and return bytestring
-		return des.encrypt(plaintext)
+		return self.encode(des.encrypt(plaintext))
 
 	def decrypt(self, key, ciphertext):
 		"""
 		Decrypts a given ciphertext with a given key using DES.
 		"""
 
-		# Configure DES objcet using key parameter
-		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
+		# Decode key
+		key = self.decode(key)
+
+		# Configure Single-DES object using key parameter
+		des = pyDes.des(key, padmode=pyDes.PAD_PKCS5)
 
 		# Decrypt message and decode bytes into string
-		return des.decrypt(ciphertext).decode()
+		return self.decode(des.decrypt(self.decode(ciphertext)))
 
 	def encode(self, bytestring):
 		"""

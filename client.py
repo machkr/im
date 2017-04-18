@@ -1,9 +1,12 @@
+from diffiehellman import DiffieHellman
+from getpass import getpass
+from random import SystemRandom
 from database import *
-import os
 import socket
 import sys
 import threading
 import time
+import os
 
 # Server connection parameters
 IP = '127.0.0.1'
@@ -12,130 +15,279 @@ PORT = 8888
 # Global client variables
 DESTINATION_LOGGED_IN = False
 SERVER_AUTHENTICATED = False
-MASTER_KEY = None
 LOGGED_IN = False
-PASSWORD = ''
+CLIENT_KEY = None	# Key shared with destination user
+SERVER_KEY = None	# Key shared with server
 
 # Initialize database connection
-db = database()
+DB = database()
+
+# Diffie-Hellman object, initialized once authenticated
+DH = None
 
 def main():
+	"""
+	Primary functionality of the client
+	"""
+
+	# Access global variables
 	global LOGGED_IN
 	global SERVER_AUTHENTICATED
 	global DESTINATION_LOGGED_IN
-	global PASSWORD
+	global SERVER_KEY
+	global DH
 
+	# While user is not logged in
 	while not LOGGED_IN:
-		username = input('[C]: Username: ')
-		password = input('[C]: Password: ')
-		LOGGED_IN = database.login(db, username, password)
-		PASSWORD = password
 
-	print('[C]: Authentication successful.')
+		# Get username
+		username = input('[CLIENT]: Username: ')
 
-	print('[C]: Attempting to connect to remote server')
+		if username == 'server':
+			print('[CLIENT]: Invalid username: try again.')
+			continue
+
+		# Get password
+		password = getpass('[CLIENT]: Password: ')
+
+		# Attempt to log in
+		LOGGED_IN = DB.login(username, password)
+
+	# User was successfully authenticated
+	print('[CLIENT]: Authentication successful.')
+
+	# Attempt to connect to server
+	print('[CLIENT]: Attempting to connect to remote server.')
+
+	# Create socket for client
 	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 	try:
+		# Connect to the server
 		client_socket.connect((IP, PORT))
-		print('[C]: Connection successful.')
-	except:
-		print('[C]: Could not connect to ',IP, ':', PORT)
+
+		# Print success message
+		print('[CLIENT]: Connection successful.')
+
+	except Exception as exception:
+
+		# Unable to connect
+		print('[CLIENT]: Error: could not connect to ', IP, ':', PORT, '.', sep='')
 		sys.exit()
 
-	destination = input('[C]: Destination username: ')
+	print('[CLIENT]: Initiating Diffie-Hellman key exchange.')
 
+	# New psuedorandom object
+	random = SystemRandom()
+
+	# Select Diffie-Hellman generator
+	generator = random.choice([2, 3, 5, 7])
+
+	# Select Diffie-Hellman prime group
+	prime_group = random.choice([5, 14, 15, 16, 17, 18])
+
+	# Generate Diffie-Hellman public/private key pair
+	DH = DiffieHellman(generator, prime_group, 256)
+
+	# Send Diffie-Hellman key exchange information
+	client_socket.sendall(str.encode('s:' + username + '!!d:server!!data:' + str(generator) + '++' + str(prime_group) + '++' + str(DH.public_key) +'!!sid:0'))
+
+	# Notify user that Diffie-Hellman is being sent
+	print('[CLIENT]: Diffie-Hellman request sent.')
+
+	# Start client receiving thread
 	thread_receive = threading.Thread(target=recv_thread, args=(client_socket,))
 	thread_receive.start()
 
-	while (not SERVER_AUTHENTICATED) and (not DESTINATION_LOGGED_IN):
-		#XOR message
-		message = xor('init', PASSWORD)
-
-		client_socket.sendall(str.encode('s:' + username + '!!d:' + destination + '!!data:' + message + '!!sid:0'))
+	while not SERVER_AUTHENTICATED:
 		time.sleep(5)
 
+	# Request username of user to communicate with
+	destination = input('[CLIENT]: Destination User:')
+
+	# Loop continuously until ready to send messages
+	while not DESTINATION_LOGGED_IN:
+
+		# Encrypt initialization message
+		message = DB.encrypt(SERVER_KEY, 'init')
+
+		# Send message
+		client_socket.sendall(str.encode('s:' + username + '!!d:' + destination + '!!data:' + message + '!!sid:3'))
+
+		# Wait
+		time.sleep(5)
+
+	# Start client input thread
 	thread_input = threading.Thread(target=input_thread, args=(client_socket, username, destination))
 	thread_input.start()
 
 def input_thread(sock, username, destination):
-	global MASTER_KEY
+	"""
+	Handles sending messages from the client
+	"""
 
+	# Access global variables
+	global CLIENT_KEY
+	global SERVER_KEY
+
+	# Notify user of thread starting
+	print("[CLIENT]: Input thread started.")
+
+	# Loop continuously
 	while True:
+
+		# Get user input
 		data = input()
 
+		# Check if user wishes to exit client
 		if data == 'exit':
 			break
 
-		message = db.encode(db.encrypt(db.decode((MASTER_KEY)), data))
+		# Encrypt with key shared between clients
+		ciphertext = DB.encrypt(CLIENT_KEY, data)
 
-		sock.sendall(('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + message + '!!sid:9').encode())
+		# Encrypt with key shared between client and server
+		ciphertext = DB.encrypt(SERVER_KEY, ciphertext)
 
+		# Send encrypted message -- had .encode before
+		sock.sendall(('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + ciphertext + '!!sid:9'))
+
+	# Close socket
 	sock.close()
 
 def recv_thread(sock):
-	print("[C]: Receive thread started.")
-	data = ""
+	"""
+	Handles receiving messages from server
+	"""
 
+	# Access global variables
 	global SERVER_AUTHENTICATED
 	global DESTINATION_LOGGED_IN
-	global MASTER_KEY
+	global CLIENT_KEY
+	global SERVER_KEY
+	global DH
 
+	# Notify user of thread starting
+	print("[CLIENT]: Receiving thread started.")
+	data = ""
+
+	# Loop continuously
 	while True:
 		try:
-			data = sock.recv(4096)
+			# Receive 4KB of data from the socket
+			raw_data = sock.recv(4096)
 
-			#data parsing
-			data = data.decode().strip().split('!!')
+			# End thread if no data received
+			if not raw_data:
+				break
 
-			source = data[0][2:].strip()
-			destination = data[1][2:].strip()
-			message = data[2][5:].strip()
-			sid = data[3][4:].strip()
+			# Parse data
+			raw_data = raw_data.decode().strip().split('!!')
 
-			#check if the server is authenticated
-			if sid == '1' and message == 'ack_init':
-				SERVER_AUTHENTICATED = True
+			# Strip fields of the data
+			source = raw_data[0][2:].strip()
+			destination = raw_data[1][2:].strip()
+			data = raw_data[2][5:].strip()
+			sid = raw_data[3][4:].strip()
 
-			#check if destination user is online
-			if sid == '2' and message == 'true':
+			# Diffie-Hellman reply
+			if sid == '1' and source == 'server':
+
+				# Notify user
+				print('[CLIENT]: Received Diffie-Hellman response from server.')
+
+				# Extract Diffie-Hellman response parameters
+				server_public_key, key_hash, nonce = data.strip().split('++')
+
+				print('Server Key:', server_public_key)
+
+				# Generate shared secret key using server's public key
+				DH.genkey(int(server_public_key))
+
+				# Verify shared secret key using receieved hash
+				if not DH.versecretkey(bytes(key_hash, 'utf-8')):
+
+					# Notify user of unsucessful authentication
+					print('[CLIENT]: Failed to verify key.')
+
+					# End program
+					sys.exit()
+
+				else: # Verification successful
+
+					# Notify user of successful authentication
+					print('[CLIENT]: Key verified.')
+
+					# Set global variables
+					SERVER_KEY = DH.secret_key
+					SERVER_AUTHENTICATED = True
+
+				# Hash nonce with secret key
+				hash = DH.digest(DH.secret_key, nonce)
+
+				# Notify user of further verification
+				print('[CLIENT]: Sending final verification to server.')
+
+				# Send verification to server
+				sock.sendall(('s:' + username + '!!' + 'd:server!!' + 'data:' + hash + '!!sid:2'))
+
+			# Check if destination user is online
+			elif sid == '4' and data == 'true' and source =='server':
+
+				# Set global variable
 				DESTINATION_LOGGED_IN = True
 
-			#check for an exchanged key
-			if message[0:6] == 'KEYGEN':
-				print('DEBUG:', message)
+			# Check for a client-client key
+			elif data[0:6] == 'KEYGEN':
 
-				MASTER_KEY = xor(message[7:], PASSWORD)
+				# DEBUG
+				print('DEBUG:', data)
 
-				if (len(MASTER_KEY) % 4) != 0:
-					MASTER_KEY = MASTER_KEY + '='
+				# Extract key
+				CLIENT_KEY = DB.decrypt(data[7:], DH.secret_key)
 
-				print('[C]: Received a key for communication: ', MASTER_KEY)
+				# While key is not divisible by 4
+				while len(CLIENT_KEY) % 4 != 0:
+
+					# Replace base-64 padding
+					CLIENT_KEY += '='
+
+				# Notify user that a key has been receieved
+				print('[CLIENT]: Received a key for communication: ', CLIENT_KEY)
+
+				# Continue looping
 				continue
 
-		except Exception as e:
-			print('[C]: Connection with server lost. Aborting program.')
+		# Catch error in receiving data
+		except Exception as exception:
+
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			print('Error in', fname, 'line', exc_tb.tb_lineno, '-', exception)
+			# print("[SERVER]: Error:", exception, '.')
+
+			# Exit program
 			sys.exit()
 
+		# If data exists
 		if data != "" or data:
-			if MASTER_KEY:
+
+			# If client key was extracted
+			if CLIENT_KEY:
+
 				try:
-					decrypted = db.decrypt(db.decode((MASTER_KEY)), db.decode(message))
-					print('[' + source + ']: ' + decrypted)
+					# Decrypt the data
+					plaintext = DB.decrypt(CLIENT_KEY, message)
+
+					# Print the decrypted message
+					print('[' + source + ']: ' + plaintext)
+
 				except:
 					pass
 			else:
+
+				# Print encrypted message
 				print('[' + source + ']: ' + message)
-
-def xor(data, key):
-	data_len = len(data)
-	key_len = len(key)
-
-	if data_len > key_len:
-		key = key + ('0'*(data_len - key_len))
-	elif data_len < key_len:
-		key = key[0:data_len]
-	return ''.join([chr(ord(one) ^ ord(two)) for (one, two) in zip(data, key)])
 
 if __name__ == '__main__':
 	main()
