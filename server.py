@@ -95,8 +95,6 @@ def client_connection(sock, addr):
 				# Initialize new Diffie Hellman object for this client
 				DH[source] = DiffieHellman(int(generator), int(prime_group), 256)
 
-				print('Server Public Key:', DH[source].public_key)
-
 				# Generate shared secret key using client's public key
 				DH[source].genkey(int(client_public_key))
 
@@ -122,7 +120,7 @@ def client_connection(sock, addr):
 				# Notify user that verification has been receieved
 				print('[SERVER]: Receieved final verification from client.')
 
-				if not DH[source].versecretkey(data, DH[source].nonce):
+				if not DH[source].versecretkey(data, nonce):
 
 					# Notify user of unsucessful authentication
 					print('[SERVER]: Failed to verify key.')
@@ -194,10 +192,7 @@ def client_connection(sock, addr):
 				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:data not sent user not online' + '!!sid:9'))
 
 		except Exception as exception:
-			exc_type, exc_obj, exc_tb = sys.exc_info()
-			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-			print(exc_type, fname, exc_tb.tb_lineno, exception)
-			# print("[SERVER]: Error:", exception, '.')
+			print("[SERVER]: Error:", exception, '.')
 			break
 
 	sock.close()

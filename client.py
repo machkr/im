@@ -96,14 +96,14 @@ def main():
 	print('[CLIENT]: Diffie-Hellman request sent.')
 
 	# Start client receiving thread
-	thread_receive = threading.Thread(target=recv_thread, args=(client_socket,))
+	thread_receive = threading.Thread(target=recv_thread, args=(client_socket, username,))
 	thread_receive.start()
 
 	while not SERVER_AUTHENTICATED:
 		time.sleep(5)
 
 	# Request username of user to communicate with
-	destination = input('[CLIENT]: Destination User:')
+	destination = input('[CLIENT]: Destination User: ')
 
 	# Loop continuously until ready to send messages
 	while not DESTINATION_LOGGED_IN:
@@ -150,12 +150,12 @@ def input_thread(sock, username, destination):
 		ciphertext = DB.encrypt(SERVER_KEY, ciphertext)
 
 		# Send encrypted message -- had .encode before
-		sock.sendall(('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + ciphertext + '!!sid:9'))
+		sock.sendall(str.encode('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + ciphertext + '!!sid:9'))
 
 	# Close socket
 	sock.close()
 
-def recv_thread(sock):
+def recv_thread(sock, username):
 	"""
 	Handles receiving messages from server
 	"""
@@ -199,13 +199,11 @@ def recv_thread(sock):
 				# Extract Diffie-Hellman response parameters
 				server_public_key, key_hash, nonce = data.strip().split('++')
 
-				print('Server Key:', server_public_key)
-
 				# Generate shared secret key using server's public key
 				DH.genkey(int(server_public_key))
 
 				# Verify shared secret key using receieved hash
-				if not DH.versecretkey(bytes(key_hash, 'utf-8')):
+				if not DH.versecretkey(key_hash):
 
 					# Notify user of unsucessful authentication
 					print('[CLIENT]: Failed to verify key.')
@@ -229,7 +227,7 @@ def recv_thread(sock):
 				print('[CLIENT]: Sending final verification to server.')
 
 				# Send verification to server
-				sock.sendall(('s:' + username + '!!' + 'd:server!!' + 'data:' + hash + '!!sid:2'))
+				sock.sendall(str.encode('s:' + username + '!!' + 'd:server!!' + 'data:' + str(hash) + '!!sid:2'))
 
 			# Check if destination user is online
 			elif sid == '4' and data == 'true' and source =='server':
@@ -260,24 +258,20 @@ def recv_thread(sock):
 
 		# Catch error in receiving data
 		except Exception as exception:
-
-			exc_type, exc_obj, exc_tb = sys.exc_info()
-			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-			print('Error in', fname, 'line', exc_tb.tb_lineno, '-', exception)
-			# print("[SERVER]: Error:", exception, '.')
+			print("[CLIENT]: Error:", exception, '.')
 
 			# Exit program
 			sys.exit()
 
 		# If data exists
-		if data != "" or data:
+		if (data != "" or data) and source != 'server':
 
 			# If client key was extracted
 			if CLIENT_KEY:
 
 				try:
 					# Decrypt the data
-					plaintext = DB.decrypt(CLIENT_KEY, message)
+					plaintext = DB.decrypt(CLIENT_KEY, data)
 
 					# Print the decrypted message
 					print('[' + source + ']: ' + plaintext)
@@ -287,7 +281,7 @@ def recv_thread(sock):
 			else:
 
 				# Print encrypted message
-				print('[' + source + ']: ' + message)
+				print('[' + source + ']: ' + data)
 
 if __name__ == '__main__':
 	main()

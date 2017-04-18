@@ -1,6 +1,7 @@
-import hashlib
+from database import *
 from binascii import hexlify
 from os import urandom
+import hashlib
 
 class DiffieHellman():
 	def __init__(self, generator, prime_group, key_length):
@@ -202,7 +203,7 @@ class DiffieHellman():
 		"""
 
 		# Return result
-		return self.digest(self.secret_key, nonce) == other_hash
+		return str(self.digest(self.secret_key, nonce)) == str(other_hash) 
 
 	def digest(self, string, nonce=None):
 		"""
@@ -212,9 +213,6 @@ class DiffieHellman():
 		# If nonce exists
 		if nonce:
 
-			# Store nonce
-			self.nonce = nonce
-
 			# Append nonce to string to be hashed
 			string += bytes(nonce, 'utf-8')
 
@@ -222,7 +220,7 @@ class DiffieHellman():
 		hash = hashlib.sha512()
 
 		# Hash shared secret bytes
-		hash.update(bytes(string, 'utf-8'))
+		hash.update(string)
 
 		# Hash secret key and nonce
 		return hash.digest()
