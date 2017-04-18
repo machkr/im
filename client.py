@@ -1,22 +1,22 @@
-from base64 import b64encode, b64decode
 from database import *
-import threading
-import socket
-import time
-import sys
 import os
+import socket
+import sys
+import threading
+import time
 
-#server connection variables
+# Server connection parameters
 IP = '127.0.0.1'
 PORT = 8888
 
-#global variables
+# Global client variables
 DESTINATION_LOGGED_IN = False
 SERVER_AUTHENTICATED = False
 MASTER_KEY = None
 LOGGED_IN = False
 PASSWORD = ''
 
+# Initialize database connection
 db = database()
 
 def main():
@@ -67,7 +67,7 @@ def input_thread(sock, username, destination):
 		if data == 'exit':
 			break
 
-		message = b64encode(db.encrypt(b64decode((MASTER_KEY)), data)).decode()
+		message = db.encode(db.encrypt(db.decode((MASTER_KEY)), data))
 
 		sock.sendall(('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + message + '!!sid:9').encode())
 
@@ -120,8 +120,7 @@ def recv_thread(sock):
 		if data != "" or data:
 			if MASTER_KEY:
 				try:
-					message = b64decode(message)
-					decrypted = db.decrypt(b64decode((MASTER_KEY)), message)
+					decrypted = db.decrypt(db.decode((MASTER_KEY)), db.decode(message))
 					print('[' + source + ']: ' + decrypted)
 				except:
 					pass

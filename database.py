@@ -134,7 +134,8 @@ class database():
 
 		try:
 			# Check if users exist
-			self.cursor.callproc('check_users', (username_x, username_y,))
+			self.cursor.callproc('check_users', 
+				(username_x, username_y,))
 
 			# Retrieve result from procedure
 			result = self.cursor.fetchone()
@@ -143,7 +144,8 @@ class database():
 			if result[0] == 'TRUE':
 
 				# Get conversation id if a conversation between them exists
-				self.cursor.callproc('get_conversation_id', (username_x, username_y,))
+				self.cursor.callproc('get_conversation_id', 
+					(username_x, username_y,))
 
 				# Retrieve result from procedure
 				result = self.cursor.fetchone()
@@ -166,7 +168,8 @@ class database():
 						new_key = urandom(8)
 						
 						# Update conversation's key
-						self.cursor.callproc('update_key', (conversation_id, new_key,))
+						self.cursor.callproc('update_key', 
+							(conversation_id, new_key,))
 						
 						# Commit changes to database
 						self.database.commit()
@@ -189,7 +192,8 @@ class database():
 					key = urandom(8)
 
 					# Create conversation between users
-					self.cursor.callproc('create_conversation', (id, username_x, username_y, key,))
+					self.cursor.callproc('create_conversation', 
+						(id, username_x, username_y, key,))
 
 					# Commit changes to database
 					self.database.commit()
@@ -220,7 +224,8 @@ class database():
 
 		try:
 			# Check if users exist
-			self.cursor.callproc('check_users', (username_x, username_y,))
+			self.cursor.callproc('check_users', 
+				(username_x, username_y,))
 
 			# Retrieve result from procedure
 			result = self.cursor.fetchone()
@@ -228,8 +233,9 @@ class database():
 			# Users exist
 			if result[0] == 'TRUE':
 
-				# Get conversation id if a conversation between them exists
-				self.cursor.callproc('get_conversation_id', (username_x, username_y,))
+				# Get conversation ID, if one exists
+				self.cursor.callproc('get_conversation_id', 
+					(username_x, username_y,))
 
 				# Retrieve result from procedure
 				result = self.cursor.fetchone()
@@ -373,4 +379,3 @@ if __name__ == "__main__":
 		print("Matched.")
 	else:
 		print("Mismatched.")
-

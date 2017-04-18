@@ -1,14 +1,18 @@
-from base64 import b64encode, b64decode
 from contextlib import suppress
 from database import *
-import threading
 import socket
-import time
 import sys
+import threading
+import time
 
-connected_users = {'server':None} #mapping of usernames to sockets
-connections = {('server', 'server'):True} #mapping of connections between users, and whether or not they have an assigned key
+# Dictionary of users with corresponding socket
+connected_users = {'server': None}
+
+# Dictionary of connected users with whether they've been assigned a key
+connections = {('server', 'server'): True}
 passwords = {'alice':'123', 'mike':'123', 'sterling':'password', 'matt':'password'} #mapping of usernames to passwords
+
+# Initialize database connectionn
 db = database()
 
 def main():
@@ -121,9 +125,7 @@ def assign_keys():
 				source = connection[0]
 				destination = connection[1]
 
-				key = (db.establish(source, destination))
-				encoded = b64encode(key)
-				key = encoded.decode()
+				key = db.encode(db.establish(source, destination))
 
 				print('[S]: Generated key for ', source, ' and ', destination, ': ', key)
 
