@@ -107,6 +107,9 @@ def client_connection(sock, addr):
 				# Generate hash of generated secret key
 				hash = DH[source].digest(DH[source].secret_key)
 
+				print('Sec Key:', DH[source].secret_key)
+				print('Len of Sec Key:', len(DH[source].secret_key))
+
 				# New psuedorandom object
 				random = SystemRandom()
 
@@ -272,10 +275,12 @@ def print_connected_users():
 		if len(CONNECTIONS) != CONNECTION_COUNT:
 
 			# Print user connections
-			print('[SERVER]: Connections:' + str(list(CONNECTIONS.keys())))
+			print('[SERVER]: Connections:' + str(list(CONNECTIONS.items())))
 
 			# Update count
 			CONNECTION_COUNT = len(CONNECTIONS)
+
+		time.sleep(10)
 
 def assign_keys():
 

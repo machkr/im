@@ -285,7 +285,7 @@ class database():
 			key = self.decode(key)
 
 		# Configure Triple-DES object using first 24 bytes of key
-		des = pyDes.triple_des(key[:24], padmode=pyDes.PAD_PKCS5)
+		des = pyDes.triple_des(key, padmode=pyDes.PAD_PKCS5)
 
 		# Encrypt message and return bytestring
 		return self.encode(des.encrypt(plaintext))

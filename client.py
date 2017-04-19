@@ -95,9 +95,6 @@ def main():
 	# Notify user that Diffie-Hellman is being sent
 	print('[CLIENT]: Diffie-Hellman request sent.')
 
-	# Request username of user to communicate with
-	destination = input('[CLIENT]: Destination User: ')
-
 	# Start client receiving thread
 	thread_receive = Thread(target=recv_thread, args=(client_socket, username,))
 	thread_receive.start()
@@ -108,8 +105,13 @@ def main():
 		# Wait
 		time.sleep(1)
 
+	# Request username of user to communicate with
+	destination = input('[CLIENT]: Destination User: ')
+
 	# Loop continuously until ready to send messages
 	while not DESTINATION_LOGGED_IN:
+
+		print('[CLIENT]: Sending initialization message.')
 
 		# Encrypt initialization message
 		data = DB.encrypt(SERVER_KEY, 'init')
@@ -236,13 +238,13 @@ def recv_thread(sock, username):
 			elif sid == '4' and source =='server':
 
 				# User online
-				if DB.decrypt(SERVER_KEY, data) == 'online':
+				if str(DB.decrypt(SERVER_KEY, data), 'utf-8') == 'online':
 
 					# Set global variable
 					DESTINATION_LOGGED_IN = True
 
 				# User offline
-				elif DB.decrypt(SERVER_KEY, data) == 'offline':
+				elif str(DB.decrypt(SERVER_KEY, data), 'utf-8') == 'offline':
 
 					# Notify user
 					print('[CLIENT]: Destination user is offline.')
