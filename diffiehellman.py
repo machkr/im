@@ -127,40 +127,14 @@ class DiffieHellman():
 
 		return pow(self.generator, self.private_key, self.prime)
 
-	def verpublickey(self, other_key):
-		"""
-		Checks that other party's public key is valid.
-		"""
-
-		# Public key must be between 2 and our prime number
-		if other_key > 2 and other_key < self.prime - 1:
-
-			# Check Legendre Symbol equal to 1
-			if pow(other_key, (self.prime - 1) // 2, self.prime) == 1:
-
-				# Key passed verification
-				return True
-	
-		# Key failed verification
-		return False
-
 	def gensecret(self, private_key, other_key):
 		"""
 		Combine private key with other party's public key to generate a shared
 		secret.
 		"""
 
-		# Verify other party's public key
-		if self.verpublickey(other_key):
-
-			# Return (other_key ^ private_key) % prime
-			return pow(other_key, private_key, self.prime)
-
-		# Other party's public key failed verification	
-		else:
-
-			# Raise exception
-			raise Exception("Other party's public key is invalid.")
+		# Return (other_key ^ private_key) % prime
+		return pow(other_key, private_key, self.prime)
 
 	def genkey(self, other_key):
 		"""
@@ -224,49 +198,3 @@ class DiffieHellman():
 
 		# Hash secret key and nonce
 		return hash.digest()
-
-if __name__ == "__main__":
-
-	# Parameters for key exchange (would need to be exchanged)
-	pub_gen = 2			# Could be 2, 3, 5, or 7
-	pub_grp = 5			# Could be 5, 14, 15, 16, 17, or 18
-	key_len = 256		# Could be anything greater than or equal to 180
-
-	# Generating public/private keys using negotiated parameters
-	alice = DiffieHellman(pub_gen, pub_grp, key_len)
-	bob = DiffieHellman(pub_gen, pub_grp, key_len)
-
-	# This is where public keys would be exchanged between parties
-
-	# Generating shared secret key
-	alice.genkey(bob.public_key)
-	bob.genkey(alice.public_key)
-
-	print("Public Key:", alice.public_key)
-
-	# Keys match
-	if alice.getkey() == bob.getkey():
-
-		# Print success message
-		print("Shared secret keys match.")
-
-		# Print key
-		print("Key:", hexlify(alice.secret_key))
-
-	# Keys don't match
-	else:
-
-		# Print failure message
-		print("Shared secret keys do not match.")
-
-		# Print each party's secret
-		print("Alice's Secret:", alice.secret)
-		print("Bob's Secret:", bob.secret)
-
-	# nonce = 'ABC'
-	# nonced =  + bytes(nonce, 'utf-8')
-
-	if alice.versecretkey(bob.digest(bob.secret_key)):
-		print('True')
-	else:
-		print('False')

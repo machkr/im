@@ -305,7 +305,7 @@ class database():
 		des = pyDes.triple_des(key[:24], padmode=pyDes.PAD_PKCS5)
 
 		# Decrypt message and decode bytes into string
-		return str(des.decrypt(self.decode(ciphertext)), 'utf-8')
+		return des.decrypt(self.decode(ciphertext))
 
 	def encode(self, bytestring):
 		"""
@@ -320,74 +320,3 @@ class database():
 		"""
 
 		return b64decode(string)
-
-if __name__ == "__main__":
-
-	# Initialize database
-	db = database()
-	
-	# Testing functionality
-	# Creating users
-	print("Creating user: Matthew...")
-	db.create_user('matthew', 'password')
-
-	print("Creating user: Sterling...")
-	db.create_user('sterling', 'password')
-
-	# Logging in users
-	print("Logging in user: Matthew...")
-	db.login('matthew', 'password')
-
-	print("Logging in user: Sterling...")
-	db.login('sterling', 'password')
-
-	# Establishing key
-	print("Establishing conversation...")
-	key1 = db.establish('matthew', 'sterling')
-	print("Established Key:", key1)
-
-	# Retrieving key
-	key2 = db.retrieve('matthew', 'sterling')
-	print("Retrieve 'matthew', 'sterling':", key2)
-
-	# Retrieving key, reversed
-	key3 = db.retrieve('sterling', 'matthew')
-	print("Retrieve 'sterling', 'matthew':", key3)
-
-	# Check consistent keys
-	if key1 == key2 and key2 == key3:
-		print("Key: Success")
-	else:
-		print("Key: Failure")
-
-	# DES sample message
-	message = "This is a test of DES encryption."
-
-	# DES encryption
-	ciphertext = db.encrypt(key1, message)
-
-	# DES decryption
-	decrypted = db.decrypt(key1, ciphertext)
-
-	# Check consistent plaintext/ciphertext
-	if message == decrypted:
-		print("DES: Success")
-	else:
-		print("DES: Failure")
-
-	# Encoding/Decoding
-	unencoded_bytes = urandom(8)
-
-	# Encode
-	string = db.encode(unencoded_bytes)
-	print("String:", string, ", Type:", type(string))
-
-	# Decode
-	decoded_bytes = db.decode(string)
-	print("Bytestring:", decoded_bytes, ", Type:", type(decoded_bytes))
-
-	# Equivalent
-	if decoded_bytes == unencoded_bytes:
-		print("Matched.")
-	else:
-		print("Mismatched.")

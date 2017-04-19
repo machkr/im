@@ -95,6 +95,9 @@ def main():
 	# Notify user that Diffie-Hellman is being sent
 	print('[CLIENT]: Diffie-Hellman request sent.')
 
+	# Request username of user to communicate with
+	destination = input('[CLIENT]: Destination User: ')
+
 	# Start client receiving thread
 	thread_receive = Thread(target=recv_thread, args=(client_socket, username,))
 	thread_receive.start()
@@ -104,9 +107,6 @@ def main():
 
 		# Wait
 		time.sleep(1)
-
-	# Request username of user to communicate with
-	destination = input('[CLIENT]: Destination User: ')
 
 	# Loop continuously until ready to send messages
 	while not DESTINATION_LOGGED_IN:
@@ -153,7 +153,7 @@ def input_thread(sock, username, destination):
 		ciphertext = DB.encrypt(SERVER_KEY, ciphertext)
 
 		# Send encrypted message -- had .encode before
-		sock.sendall(str.encode('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + ciphertext + '!!sid:9'))
+		sock.sendall(str.encode('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + ciphertext + '!!sid:5'))
 
 	# Close socket
 	sock.close()
@@ -233,35 +233,53 @@ def recv_thread(sock, username):
 				sock.sendall(str.encode('s:' + username + '!!' + 'd:server!!' + 'data:' + str(hash) + '!!sid:2'))
 
 			# Check if destination user is online
-			elif sid == '4' and data == 'true' and source =='server':
+			elif sid == '4' and source =='server':
 
-				# Set global variable
-				DESTINATION_LOGGED_IN = True
+				# User online
+				if DB.decrypt(SERVER_KEY, data) == 'online':
 
-			# Check for a client-client key
-			elif data[0:6] == 'KEYGEN':
+					# Set global variable
+					DESTINATION_LOGGED_IN = True
 
-				# DEBUG
-				print('DEBUG:', data)
+				# User offline
+				elif DB.decrypt(SERVER_KEY, data) == 'offline':
 
-				# Extract key
-				CLIENT_KEY = DB.decrypt(SERVER_KEY, data[7:])
+					# Notify user
+					print('[CLIENT]: Destination user is offline.')
 
-				# While key is not divisible by 4
-				while len(CLIENT_KEY) % 4 != 0:
+			# Check for a key assignment message
+			elif sid == '9999' and source == 'server':
 
-					# Replace base-64 padding
-					CLIENT_KEY += '='
+				# If it is a valid keygen message
+				if data[0:6] == 'KEYGEN':
 
-				# Notify user that a key has been receieved
-				print('[CLIENT]: Received a key for communication:', CLIENT_KEY)
+					# Extract key
+					CLIENT_KEY = DB.decrypt(SERVER_KEY, data[7:])
 
-				# Continue looping
-				continue
+					# While key is not divisible by 4
+					while len(CLIENT_KEY) % 4 != 0:
+
+						# Replace base-64 padding
+						CLIENT_KEY += '='
+
+					# Notify user that a key has been receieved
+					# print('[CLIENT]: Received a key for communication:', CLIENT_KEY)
+
+					# Continue looping
+					continue
+
+				else:
+
+					# Notify user that key assignment failed
+					print('[CLIENT]: Key assignment failed.')
+					continue
 
 		# Catch error in receiving data
 		except Exception as exception:
-			print("[CLIENT]: Error:", exception, '.')
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			print('Error in', fname, 'line', exc_tb.tb_lineno, '-', exception)
+			# print("[CLIENT]: Error:", exception, '.')
 
 			# Exit program
 			sys.exit()
@@ -269,12 +287,15 @@ def recv_thread(sock, username):
 		# If data exists
 		if (data != "" or data) and source != 'server':
 
+			# Decrypt data using key shared with server
+			data = DB.decrypt(SERVER_KEY, data)
+
 			# If client key was extracted
 			if CLIENT_KEY:
 
 				try:
-					# Decrypt the data
-					plaintext = DB.decrypt(CLIENT_KEY, data)
+					# Decrypt the data using key shared with client
+					plaintext = str(DB.decrypt(CLIENT_KEY, data), 'utf-8')
 
 					# Print the decrypted message
 					print('[' + source + ']: ' + plaintext)
@@ -285,6 +306,9 @@ def recv_thread(sock, username):
 
 				# Print encrypted message
 				print('[' + source + ']: ' + data)
+
+		else:
+			continue
 
 if __name__ == '__main__':
 	main()

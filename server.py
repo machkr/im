@@ -10,13 +10,19 @@ import sys
 import time
 
 # Dictionary of users with corresponding socket
-CONNECTED_USERS = {'server': None}
+USERS = {'server': None}
+
+# Count of currently connected users
+USER_COUNT = 1
 
 # Dictionary of users with server's Diffie-Hellman object
 DH = {'server': None}
 
 # Dictionary of connected users and whether key is assigned
 CONNECTIONS = {('server', 'server'): True}
+
+# COunt of current user connections
+CONNECTION_COUNT = 1
 
 # Initialize database connection
 DB = database()
@@ -139,26 +145,29 @@ def client_connection(sock, addr):
 			elif sid == '3':
 
 				# Print contents of receieved data
-				print('[SERVER]: Source:', source, ' Destination:', destination, 'Data:', data, 'SID:', sid)
+				print('[SERVER]: Source:', source, 'Destination:', destination, 'Data:', data, 'SID:', sid)
 
-				print(DB.decrypt(DH[source].secret_key, data))
+				# print('DEBUG:', str(DB.decrypt(DH[source].secret_key, data), 'utf-8'))
 
 				# Verify by decrypting data
-				if DB.decrypt(DH[source].secret_key, data) == 'init':
+				if str(DB.decrypt(DH[source].secret_key, data), 'utf-8') == 'init':
 
 					# If the destination user is connected
 					if is_user_connected(destination):
 
 						# Create the connection between the two users
-						CONNECTIONS[(source, destination)] = False 
+						CONNECTIONS[(source, destination)] = False
 
-						# Send message to client indicating user is online
-						sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:true' +  '!!sid:4'))
+						# Encrypt message
+						data = DB.encrypt(DH[source].secret_key, 'online')
 
 					else: # Destination user is not connected
 
-						# Send message to client indicating user is offline
-						sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:false' +  '!!sid:4'))
+						# Encrypt message
+						data = DB.encrypt(DH[source].secret_key, 'offline')
+
+					# Send message to client indicating user is online/offline
+					sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:' + data +  '!!sid:4'))
 				
 				# Decrypted data was not 'init'
 				else:
@@ -170,29 +179,43 @@ def client_connection(sock, addr):
 					sock.close()
 
 			# Check that destination user is connected and not the server
-			if is_user_connected(destination) and destination != 'server':
+			elif is_user_connected(destination):
+
+				# Check that destination is not server
+				if destination == 'server':
+
+					# If it is, continue
+					continue
 
 				# Print contents of receieved data
-				print('[SERVER]: Source: ', source, ' Destination: ', destination, ' Data: ', data, 'SID: ', sid)
+				print('[SERVER]: Source:', source, 'Destination:', destination, 'Data:', data, 'SID: ', sid)
 
 				source_data = DB.decrypt(DH[source].secret_key, data)
 				destination_data = DB.encrypt(DH[destination].secret_key, source_data)
 
 				# Forward data to destination user's socket
-				CONNECTED_USERS[destination].sendall(str.encode('s:' + source + '!!' + 'd:' + destination + '!!' + 'data:' + destination_data + '!!sid:9'))
+				USERS[destination].sendall(str.encode('s:' + source + '!!' + 'd:' + destination + '!!' + 'data:' + destination_data + '!!sid:5'))
 
 				# Notify user that data was sent
-				print('[SERVER]: Data from', source, 'sent to', destination, '.')
+				print('[SERVER]: Data from ', source, ' sent to ', destination, '.', sep='')
 
-			elif destination == 'server':
-				pass
-
+			# Destination user not connected
 			else:
+
+				# Notify user that destination is not connected
 				print('[SERVER]: Data from', source, 'not sent to', destination, 'because destination is not connected.')
-				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:data not sent user not online' + '!!sid:9'))
+
+				# Encrypt message
+				data = DB.encrypt(DH[source].secret_key, 'offline')
+
+				# Send message to client that destination is offline
+				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:' + data + '!!sid:4'))
 
 		except Exception as exception:
-			print("[SERVER]: Error:", exception, '.')
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			print('Error in', fname, 'line', exc_tb.tb_lineno, '-', exception)
+			# print("[SERVER]: Error:", exception, '.')
 			break
 
 	sock.close()
@@ -203,7 +226,7 @@ def is_user_connected(username):
 	"""
 
 	# If username is in dictionary of connected users
-	if username in CONNECTED_USERS:
+	if username in USERS:
 
 		# Return true
 		return True
@@ -217,10 +240,10 @@ def is_user_connected(username):
 def add_new_connection(username, sock):
 	"""
 	Adds a user and their corresponding socket to the
-	dictionary of user connections
+	dictionary of users
 	"""
 
-	CONNECTED_USERS[username] = sock
+	USERS[username] = sock
 
 def print_connected_users():
 	"""
@@ -228,14 +251,31 @@ def print_connected_users():
 	current connections
 	"""
 
+	# Access global variables
+	global USER_COUNT
+	global CONNECTION_COUNT
+
 	# Notify user of thread starting
 	print('[SERVER]: Connected users thread started.')
 
 	# Loop continuously
 	while True:
-		print('[SERVER]: Users: ' + str(list(CONNECTED_USERS.keys())))
-		print('[SERVER]: Connections:' + str(list(CONNECTIONS.keys())))
-		time.sleep(10)
+
+		if len(USERS) != USER_COUNT:
+
+			# Print connected users
+			print('[SERVER]: Users: ' + str(list(USERS.keys())))
+
+			# Update count
+			USER_COUNT = len(USERS)
+
+		if len(CONNECTIONS) != CONNECTION_COUNT:
+
+			# Print user connections
+			print('[SERVER]: Connections:' + str(list(CONNECTIONS.keys())))
+
+			# Update count
+			CONNECTION_COUNT = len(CONNECTIONS)
 
 def assign_keys():
 
@@ -244,6 +284,8 @@ def assign_keys():
 
 	# Loop continuously
 	while True:
+
+		# Wait
 		time.sleep(1)
 
 		# For each connection
@@ -267,8 +309,8 @@ def assign_keys():
 				key_destination = DB.encrypt(DH[destination].secret_key, key)
 
 				# Send the negotiated key to each user
-				CONNECTED_USERS[source].sendall(('s:server!!d:' + source + '!!data:KEYGEN-' + key_source + '!!sid:9999'))
-				CONNECTED_USERS[destination].sendall(('s:server!!d:' + destination + '!!data:KEYGEN-' + key_destination + '!!sid:9999'))
+				USERS[source].sendall(str.encode('s:server!!d:' + source + '!!data:KEYGEN-' + key_source + '!!sid:9999'))
+				USERS[destination].sendall(str.encode('s:server!!d:' + destination + '!!data:KEYGEN-' + key_destination + '!!sid:9999'))
 
 				# Set key assignment to true
 				CONNECTIONS[connection] = True
