@@ -1,10 +1,10 @@
+from database import *
 from diffiehellman import DiffieHellman
 from getpass import getpass
 from random import SystemRandom
-from database import *
+from threading import Thread
 import socket
 import sys
-import threading
 import time
 import os
 
@@ -96,11 +96,14 @@ def main():
 	print('[CLIENT]: Diffie-Hellman request sent.')
 
 	# Start client receiving thread
-	thread_receive = threading.Thread(target=recv_thread, args=(client_socket, username,))
+	thread_receive = Thread(target=recv_thread, args=(client_socket, username,))
 	thread_receive.start()
 
+	# While key has yet to be negotiated with server
 	while not SERVER_AUTHENTICATED:
-		time.sleep(5)
+
+		# Wait
+		time.sleep(1)
 
 	# Request username of user to communicate with
 	destination = input('[CLIENT]: Destination User: ')
@@ -109,16 +112,16 @@ def main():
 	while not DESTINATION_LOGGED_IN:
 
 		# Encrypt initialization message
-		message = DB.encrypt(SERVER_KEY, 'init')
+		data = DB.encrypt(SERVER_KEY, 'init')
 
-		# Send message
-		client_socket.sendall(str.encode('s:' + username + '!!d:' + destination + '!!data:' + message + '!!sid:3'))
+		# Send initialization message to server
+		client_socket.sendall(str.encode('s:' + username + '!!d:' + destination + '!!data:' + data + '!!sid:3'))
 
 		# Wait
 		time.sleep(5)
 
 	# Start client input thread
-	thread_input = threading.Thread(target=input_thread, args=(client_socket, username, destination))
+	thread_input = Thread(target=input_thread, args=(client_socket, username, destination))
 	thread_input.start()
 
 def input_thread(sock, username, destination):
@@ -221,7 +224,7 @@ def recv_thread(sock, username):
 					SERVER_AUTHENTICATED = True
 
 				# Hash nonce with secret key
-				hash = DH.digest(DH.secret_key, nonce)
+				hash = DH.digest(SERVER_KEY, nonce)
 
 				# Notify user of further verification
 				print('[CLIENT]: Sending final verification to server.')
@@ -242,7 +245,7 @@ def recv_thread(sock, username):
 				print('DEBUG:', data)
 
 				# Extract key
-				CLIENT_KEY = DB.decrypt(data[7:], DH.secret_key)
+				CLIENT_KEY = DB.decrypt(SERVER_KEY, data[7:])
 
 				# While key is not divisible by 4
 				while len(CLIENT_KEY) % 4 != 0:
@@ -251,7 +254,7 @@ def recv_thread(sock, username):
 					CLIENT_KEY += '='
 
 				# Notify user that a key has been receieved
-				print('[CLIENT]: Received a key for communication: ', CLIENT_KEY)
+				print('[CLIENT]: Received a key for communication:', CLIENT_KEY)
 
 				# Continue looping
 				continue

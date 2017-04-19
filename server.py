@@ -2,23 +2,23 @@ from contextlib import suppress
 from database import *
 from diffiehellman import DiffieHellman
 from random import SystemRandom
+from threading import Thread
 import os
 import socket
 import string
 import sys
-import threading
 import time
 
 # Dictionary of users with corresponding socket
 CONNECTED_USERS = {'server': None}
 
-# Dictionary of users with the server's corresponding Diffie-Hellman object
+# Dictionary of users with server's Diffie-Hellman object
 DH = {'server': None}
 
-# Dictionary of connected users with whether they've been assigned a key
+# Dictionary of connected users and whether key is assigned
 CONNECTIONS = {('server', 'server'): True}
 
-# Initialize database connectionn
+# Initialize database connection
 DB = database()
 
 def main():
@@ -35,12 +35,12 @@ def main():
 
 	# Start thread to handle the printing of connected users
 	print('[SERVER]: Starting connected users thread...')
-	user_list_thread = threading.Thread(target=print_connected_users)
+	user_list_thread = Thread(target=print_connected_users)
 	user_list_thread.start()
 
 	# Start thread to handle key assignments
 	print('[SERVER]: Starting key assignment thread...')
-	key_assignment_thread = threading.Thread(target=assign_keys)
+	key_assignment_thread = Thread(target=assign_keys)
 	key_assignment_thread.start()
 
 	# loop to handle client connections
@@ -54,7 +54,7 @@ def main():
 
 		# Start thread to handle client connection
 		print('[SERVER]: Starting client connection thread...')
-		client_thread = threading.Thread(target=client_connection, args=(client_socket,address))
+		client_thread = Thread(target=client_connection, args=(client_socket,address))
 		client_thread.start()
 
 def client_connection(sock, addr):
@@ -111,8 +111,7 @@ def client_connection(sock, addr):
 				print('[SERVER]: Sending Diffie-Hellman response to client.')
 
 				# Send server's public key, hash of the secret key, and a challenge
-				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:'
-				 + str(DH[source].public_key) + '++' + str(hash) + '++' + str(nonce) + '!!sid:1'))
+				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:' + str(DH[source].public_key) + '++' + str(hash) + '++' + str(nonce) + '!!sid:1'))
 
 			# Verification of Diffie-Hellman shared key
 			elif sid == '2' and destination == 'server':
@@ -133,17 +132,19 @@ def client_connection(sock, addr):
 					# Notify users of successful verification
 					print('[SERVER]: Key verified.')
 
+					# Add username and socket to dictionary
+					add_new_connection(source, sock)
+
 			# Client-to-client communication initialization
-			elif sid == '3' and destination != 'server':
+			elif sid == '3':
 
 				# Print contents of receieved data
-				print('[SERVER]: Source: ', source, ' Destination: ', destination, ' Data: ', data, 'SID: ', sid)
+				print('[SERVER]: Source:', source, ' Destination:', destination, 'Data:', data, 'SID:', sid)
+
+				print(DB.decrypt(DH[source].secret_key, data))
 
 				# Verify by decrypting data
 				if DB.decrypt(DH[source].secret_key, data) == 'init':
-
-					# Add username and socket to dictionary for each message received
-					add_new_connection(source, sock)
 
 					# If the destination user is connected
 					if is_user_connected(destination):
@@ -167,13 +168,9 @@ def client_connection(sock, addr):
 
 					# CLose socket
 					sock.close()
-			# else:
-
-			# 	# Send message to client
-			# 	sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:data not sent user not online' + '!!sid:9'))
 
 			# Check that destination user is connected and not the server
-			elif is_user_connected(destination) and destination != 'server':
+			if is_user_connected(destination) and destination != 'server':
 
 				# Print contents of receieved data
 				print('[SERVER]: Source: ', source, ' Destination: ', destination, ' Data: ', data, 'SID: ', sid)
@@ -186,6 +183,9 @@ def client_connection(sock, addr):
 
 				# Notify user that data was sent
 				print('[SERVER]: Data from', source, 'sent to', destination, '.')
+
+			elif destination == 'server':
+				pass
 
 			else:
 				print('[SERVER]: Data from', source, 'not sent to', destination, 'because destination is not connected.')

@@ -278,11 +278,14 @@ class database():
 		Encrypts a given plaintext with a given key using DES.
 		"""
 
-		# Decode key
-		key = self.decode(key)
+		# Check that key is bytestring
+		if type(key) is not bytes:
 
-		# Configure Single-DES object using key parameter
-		des = pyDes.des(key, padmode=pyDes.PAD_PKCS5)
+			# Decode key
+			key = self.decode(key)
+
+		# Configure Triple-DES object using first 24 bytes of key
+		des = pyDes.triple_des(key[:24], padmode=pyDes.PAD_PKCS5)
 
 		# Encrypt message and return bytestring
 		return self.encode(des.encrypt(plaintext))
@@ -292,14 +295,17 @@ class database():
 		Decrypts a given ciphertext with a given key using DES.
 		"""
 
-		# Decode key
-		key = self.decode(key)
+		# Check that key is bytestring
+		if type(key) is not bytes:
 
-		# Configure Single-DES object using key parameter
-		des = pyDes.des(key, padmode=pyDes.PAD_PKCS5)
+			# Decode key
+			key = self.decode(key)
+
+		# Configure Triple-DES object using first 24 bytes of key
+		des = pyDes.triple_des(key[:24], padmode=pyDes.PAD_PKCS5)
 
 		# Decrypt message and decode bytes into string
-		return self.decode(des.decrypt(self.decode(ciphertext)))
+		return str(des.decrypt(self.decode(ciphertext)), 'utf-8')
 
 	def encode(self, bytestring):
 		"""
