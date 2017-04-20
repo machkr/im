@@ -256,7 +256,7 @@ def recv_thread(sock, username):
 				if data[0:6] == 'KEYGEN':
 
 					# Extract key
-					CLIENT_KEY = DB.decrypt(SERVER_KEY, data[7:])
+					CLIENT_KEY = data[7:]
 
 					# While key is not divisible by 4
 					while len(CLIENT_KEY) % 4 != 0:
@@ -264,8 +264,10 @@ def recv_thread(sock, username):
 						# Replace base-64 padding
 						CLIENT_KEY += '='
 
+					CLIENT_KEY = DB.decrypt(SERVER_KEY, CLIENT_KEY)
+
 					# Notify user that a key has been receieved
-					# print('[CLIENT]: Received a key for communication:', CLIENT_KEY)
+					print('[CLIENT]: Received a key of length', len(CLIENT_KEY), 'for communication:', CLIENT_KEY)
 
 					# Continue looping
 					continue

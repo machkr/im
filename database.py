@@ -185,11 +185,11 @@ class database():
 
 				else: # Conversation does not exist
 
-					# Generate conversation id (8 bytes/64 bits)
-					id = urandom(8)
+					# Generate conversation id (24 bytes/192 bits)
+					id = urandom(24)
 
-					# Generate shared key (8 bytes/64 bits)
-					key = urandom(8)
+					# Generate shared key (24 bytes/192 bits)
+					key = urandom(24)
 
 					# Create conversation between users
 					self.cursor.callproc('create_conversation', 
@@ -284,8 +284,11 @@ class database():
 			# Decode key
 			key = self.decode(key)
 
+		print('Key Length:', len(key[:24]))
+		print('Key:', key)
+
 		# Configure Triple-DES object using first 24 bytes of key
-		des = pyDes.triple_des(key, padmode=pyDes.PAD_PKCS5)
+		des = pyDes.triple_des(key[:24], padmode=pyDes.PAD_PKCS5)
 
 		# Encrypt message and return bytestring
 		return self.encode(des.encrypt(plaintext))
@@ -320,3 +323,11 @@ class database():
 		"""
 
 		return b64decode(string)
+
+if __name__ == '__main__':
+	DB = database()
+
+	bytestring = b'\x00s\x8c\x01r2_\xcc\x19\x84(\xd1\x8f\xe2\xef\xab\x1c\xe9\x96\xcd\x02\x7f\xaf\xd2{\x01\xa6\x8e\x00\x12?\x0f\xdc7&l\xe0#\x11\xfa |\xefs\x90\xa1n\xb7Q\x91\x1d\xf0\xbaC\xce\xe0d\x1bO\x06\xa9\xe1\xc7\xae'
+
+	print(DB.encrypt(bytestring[:24], 'test'))
+
