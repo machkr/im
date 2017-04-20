@@ -164,8 +164,8 @@ class database():
 					# If key has expired (30 second expiration)
 					if (datetime.now() - result[1] > timedelta(seconds=30)):
 						
-						# Generate a new key (8 bytes/64 bits)
-						new_key = urandom(8)
+						# Generate a new key (24 bytes/192 bits)
+						new_key = urandom(24)
 						
 						# Update conversation's key
 						self.cursor.callproc('update_key', 

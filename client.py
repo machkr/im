@@ -106,7 +106,7 @@ def main():
 		time.sleep(1)
 
 	# Request username of user to communicate with
-	destination = input('[CLIENT]: Destination User: ')
+	destination = input('[CLIENT]: Destination username: ')
 
 	# Loop continuously until ready to send messages
 	while not DESTINATION_LOGGED_IN:
@@ -240,6 +240,8 @@ def recv_thread(sock, username):
 				# User online
 				if str(DB.decrypt(SERVER_KEY, data), 'utf-8') == 'online':
 
+					print('[CLIENT]: Destination user is online.')
+
 					# Set global variable
 					DESTINATION_LOGGED_IN = True
 
@@ -255,7 +257,7 @@ def recv_thread(sock, username):
 				# If it is a valid keygen message
 				if data[0:6] == 'KEYGEN':
 
-					# Extract key
+					# Extract data
 					CLIENT_KEY = data[7:]
 
 					# While key is not divisible by 4
@@ -264,6 +266,7 @@ def recv_thread(sock, username):
 						# Replace base-64 padding
 						CLIENT_KEY += '='
 
+					# Decrypt key using server key
 					CLIENT_KEY = DB.decrypt(SERVER_KEY, CLIENT_KEY)
 
 					# Notify user that a key has been receieved

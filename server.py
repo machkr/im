@@ -107,9 +107,6 @@ def client_connection(sock, addr):
 				# Generate hash of generated secret key
 				hash = DH[source].digest(DH[source].secret_key)
 
-				print('Sec Key:', DH[source].secret_key)
-				print('Len of Sec Key:', len(DH[source].secret_key))
-
 				# New psuedorandom object
 				random = SystemRandom()
 
@@ -206,7 +203,7 @@ def client_connection(sock, addr):
 			else:
 
 				# Notify user that destination is not connected
-				print('[SERVER]: Data from', source, 'not sent to', destination, 'because destination is not connected.')
+				print('[SERVER]: Data from', source, ' was not sent to', destination, 'because destination is not connected.')
 
 				# Encrypt message
 				data = DB.encrypt(DH[source].secret_key, 'offline')
@@ -280,8 +277,6 @@ def print_connected_users():
 			# Update count
 			CONNECTION_COUNT = len(CONNECTIONS)
 
-		time.sleep(10)
-
 def assign_keys():
 
 	# Notify user of thread starting
@@ -307,7 +302,7 @@ def assign_keys():
 				key = DB.establish(source, destination)
 
 				# Notify user that a key has been generated
-				print('[SERVER]: Generated key for', source, 'and', destination, ':', DB.encode(key))
+				print('[SERVER]: Generated key of length ', len(key), ' for ', source, ' and ', destination, '.')
 
 				# Encrypt key for each user it is to be sent to
 				key_source = DB.encrypt(DH[source].secret_key, key)
