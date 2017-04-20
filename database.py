@@ -43,7 +43,7 @@ class database():
 			if result[0] == 'TRUE':
 
 				# Success message
-				print("[C]: User created successfully.")
+				print("[CLIENT]: User created successfully.")
 
 				# Commit changes to database
 				self.database.commit()
@@ -61,7 +61,7 @@ class database():
 		except Exception as exception:
 
 			# Print exception
-			print('[C]:', exception)
+			print('[CLIENT]:', exception)
 
 			# Return result
 			return False
@@ -94,7 +94,7 @@ class database():
 					self.cursor.callproc('login', (username,))
 					
 					# Success message
-					print("[C]: User logged in successfully.")
+					print("[CLIENT]: User logged in successfully.")
 
 					# Commit changes to database
 					self.database.commit()
@@ -134,7 +134,8 @@ class database():
 
 		try:
 			# Check if users exist
-			self.cursor.callproc('check_users', (username_x, username_y,))
+			self.cursor.callproc('check_users', 
+				(username_x, username_y,))
 
 			# Retrieve result from procedure
 			result = self.cursor.fetchone()
@@ -143,7 +144,8 @@ class database():
 			if result[0] == 'TRUE':
 
 				# Get conversation id if a conversation between them exists
-				self.cursor.callproc('get_conversation_id', (username_x, username_y,))
+				self.cursor.callproc('get_conversation_id', 
+					(username_x, username_y,))
 
 				# Retrieve result from procedure
 				result = self.cursor.fetchone()
@@ -162,11 +164,12 @@ class database():
 					# If key has expired (30 second expiration)
 					if (datetime.now() - result[1] > timedelta(seconds=30)):
 						
-						# Generate a new key (8 bytes/64 bits)
-						new_key = urandom(8)
+						# Generate a new key (24 bytes/192 bits)
+						new_key = urandom(24)
 						
 						# Update conversation's key
-						self.cursor.callproc('update_key', (conversation_id, new_key,))
+						self.cursor.callproc('update_key', 
+							(conversation_id, new_key,))
 						
 						# Commit changes to database
 						self.database.commit()
@@ -182,14 +185,15 @@ class database():
 
 				else: # Conversation does not exist
 
-					# Generate conversation id (8 bytes/64 bits)
-					id = urandom(8)
+					# Generate conversation id (24 bytes/192 bits)
+					id = urandom(24)
 
-					# Generate shared key (8 bytes/64 bits)
-					key = urandom(8)
+					# Generate shared key (24 bytes/192 bits)
+					key = urandom(24)
 
 					# Create conversation between users
-					self.cursor.callproc('create_conversation', (id, username_x, username_y, key,))
+					self.cursor.callproc('create_conversation', 
+						(id, username_x, username_y, key,))
 
 					# Commit changes to database
 					self.database.commit()
@@ -207,7 +211,7 @@ class database():
 		except Exception as exception:
 
 			# Print exception
-			print('[S]:', exception)
+			print('[SERVER]:', exception)
 
 			# Return result
 			return None
@@ -220,7 +224,8 @@ class database():
 
 		try:
 			# Check if users exist
-			self.cursor.callproc('check_users', (username_x, username_y,))
+			self.cursor.callproc('check_users', 
+				(username_x, username_y,))
 
 			# Retrieve result from procedure
 			result = self.cursor.fetchone()
@@ -228,8 +233,9 @@ class database():
 			# Users exist
 			if result[0] == 'TRUE':
 
-				# Get conversation id if a conversation between them exists
-				self.cursor.callproc('get_conversation_id', (username_x, username_y,))
+				# Get conversation ID, if one exists
+				self.cursor.callproc('get_conversation_id', 
+					(username_x, username_y,))
 
 				# Retrieve result from procedure
 				result = self.cursor.fetchone()
@@ -272,22 +278,34 @@ class database():
 		Encrypts a given plaintext with a given key using DES.
 		"""
 
-		# Configure DES object using key parameter
-		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
+		# Check that key is bytestring
+		if type(key) is not bytes:
+
+			# Decode key
+			key = self.decode(key)
+
+		# Configure Triple-DES object using first 24 bytes of key
+		des = pyDes.triple_des(key[:24], padmode=pyDes.PAD_PKCS5)
 
 		# Encrypt message and return bytestring
-		return des.encrypt(plaintext)
+		return self.encode(des.encrypt(plaintext))
 
 	def decrypt(self, key, ciphertext):
 		"""
 		Decrypts a given ciphertext with a given key using DES.
 		"""
 
-		# Configure DES objcet using key parameter
-		des = pyDes.des(key, pad="0", padmode=pyDes.PAD_NORMAL)
+		# Check that key is bytestring
+		if type(key) is not bytes:
+
+			# Decode key
+			key = self.decode(key)
+
+		# Configure Triple-DES object using first 24 bytes of key
+		des = pyDes.triple_des(key[:24], padmode=pyDes.PAD_PKCS5)
 
 		# Decrypt message and decode bytes into string
-		return des.decrypt(ciphertext).decode()
+		return des.decrypt(self.decode(ciphertext))
 
 	def encode(self, bytestring):
 		"""
@@ -303,74 +321,10 @@ class database():
 
 		return b64decode(string)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
+	DB = database()
 
-	# Initialize database
-	db = database()
-	
-	# Testing functionality
-	# Creating users
-	print("Creating user: Matthew...")
-	db.create_user('matthew', 'password')
+	bytestring = b'\x00s\x8c\x01r2_\xcc\x19\x84(\xd1\x8f\xe2\xef\xab\x1c\xe9\x96\xcd\x02\x7f\xaf\xd2{\x01\xa6\x8e\x00\x12?\x0f\xdc7&l\xe0#\x11\xfa |\xefs\x90\xa1n\xb7Q\x91\x1d\xf0\xbaC\xce\xe0d\x1bO\x06\xa9\xe1\xc7\xae'
 
-	print("Creating user: Sterling...")
-	db.create_user('sterling', 'password')
-
-	# Logging in users
-	print("Logging in user: Matthew...")
-	db.login('matthew', 'password')
-
-	print("Logging in user: Sterling...")
-	db.login('sterling', 'password')
-
-	# Establishing key
-	print("Establishing conversation...")
-	key1 = db.establish('matthew', 'sterling')
-	print("Established Key:", key1)
-
-	# Retrieving key
-	key2 = db.retrieve('matthew', 'sterling')
-	print("Retrieve 'matthew', 'sterling':", key2)
-
-	# Retrieving key, reversed
-	key3 = db.retrieve('sterling', 'matthew')
-	print("Retrieve 'sterling', 'matthew':", key3)
-
-	# Check consistent keys
-	if key1 == key2 and key2 == key3:
-		print("Key: Success")
-	else:
-		print("Key: Failure")
-
-	# DES sample message
-	message = "This is a test of DES encryption."
-
-	# DES encryption
-	ciphertext = db.encrypt(key1, message)
-
-	# DES decryption
-	decrypted = db.decrypt(key1, ciphertext)
-
-	# Check consistent plaintext/ciphertext
-	if message == decrypted:
-		print("DES: Success")
-	else:
-		print("DES: Failure")
-
-	# Encoding/Decoding
-	unencoded_bytes = urandom(8)
-
-	# Encode
-	string = db.encode(unencoded_bytes)
-	print("String:", string, ", Type:", type(string))
-
-	# Decode
-	decoded_bytes = db.decode(string)
-	print("Bytestring:", decoded_bytes, ", Type:", type(decoded_bytes))
-
-	# Equivalent
-	if decoded_bytes == unencoded_bytes:
-		print("Matched.")
-	else:
-		print("Mismatched.")
+	print(DB.encrypt(bytestring[:24], 'test'))
 

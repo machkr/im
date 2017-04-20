@@ -1,6 +1,7 @@
-import hashlib
+from database import *
 from binascii import hexlify
 from os import urandom
+import hashlib
 
 class DiffieHellman():
 	def __init__(self, generator, prime_group, key_length):
@@ -67,7 +68,7 @@ class DiffieHellman():
 		# Default prime group
 		default_prime_group = 17
 
-		# Possible prime numbers (MODP Diffie Hellman Groups, Internet Society)
+		# Possible prime numbers (MODP Diffie-Hellman Groups, Internet Society)
 		primes = {
 			5:  0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA237327FFFFFFFFFFFFFFFF,
 			14: 0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA051015728E5A8AACAA68FFFFFFFFFFFFFFFF,
@@ -126,40 +127,14 @@ class DiffieHellman():
 
 		return pow(self.generator, self.private_key, self.prime)
 
-	def verpublickey(self, other_key):
-		"""
-		Checks that other party's public key is valid.
-		"""
-
-		# Public key must be between 2 and our prime number
-		if other_key > 2 and other_key < self.prime - 1:
-
-			# Check Legendre Symbol equal to 1
-			if pow(other_key, (self.prime - 1) // 2, self.prime) == 1:
-
-				# Key passed verification
-				return True
-	
-		# Key failed verification
-		return False
-
 	def gensecret(self, private_key, other_key):
 		"""
-		Combine private key  with other party's public key to generate a shared
+		Combine private key with other party's public key to generate a shared
 		secret.
 		"""
 
-		# Verify other party's public key
-		if self.verpublickey(other_key):
-
-			# Return (other_key ^ private_key) % prime
-			return pow(other_key, private_key, self.prime)
-
-		# Other party's public key failed verification	
-		else:
-
-			# Raise exception
-			raise Exception("Other party's public key is invalid.")
+		# Return (other_key ^ private_key) % prime
+		return pow(other_key, private_key, self.prime)
 
 	def genkey(self, other_key):
 		"""
@@ -170,7 +145,6 @@ class DiffieHellman():
 		self.secret = self.gensecret(self.private_key, other_key)
 
 		try:
-
 			# Convert shared secret (integer) to bytes for hash function
 			secret_bytes = self.secret.to_bytes(self.secret.bit_length() // 8 + 1, byteorder = 'big')
 
@@ -196,61 +170,31 @@ class DiffieHellman():
 
 		return self.secret_key
 
-	def showparameters(self):
+	def versecretkey(self, other_hash, nonce=None):
 		"""
-		Print parameters of Diffie-Hellman exchange.
+		Verifies that the hash of the secret key and nonce
+		matches the provided hash
 		"""
-		print("Parameters:")
-		print("Prime[{0}]: {1}".format(self.prime.bit_length(), self.prime))
-		print("Generator[{0}]: {1}\n".format(self.generator.bit_length(), self.generator))
-		print("Private Key[{0}]: {1}\n".format(self.private_key.bit_length(), self.private_key))
-		print("Public Key[{0}]: {1}".format(self.public_key.bit_length(), self.public_key))
 
-	def showresults(self):
+		# Return result
+		return str(self.digest(self.secret_key, nonce)) == str(other_hash) 
+
+	def digest(self, string, nonce=None):
 		"""
-		Print results of Diffie-Hellman exchange.
+		Digests a given string using SHA-512
 		"""
-		print("Results:")
-		print("Shared Secret[{0}]: {1}".format(self.secret.bit_length(), self.secret))
-		print("Shared Key[{0}]: {1}".format(len(self.secret_key), hexlify(self.secret_key)))
 
-if __name__ == "__main__":
+		# If nonce exists
+		if nonce:
 
-	# Parameters for key exchange (would need to be exchanged)
-	pub_gen = 5		# Could be 2, 3, 5, or 7
-	pub_grp = 18	# Could be 5, 14, 15, 16, 17, or 18
-	key_len = 256	# Could be anything greater than or equal to 180
+			# Append nonce to string to be hashed
+			string += bytes(nonce, 'utf-8')
 
-	# Generating public/private keys using negotiated parameters
-	alice = DiffieHellman(pub_gen, pub_grp, key_len)
-	bob = DiffieHellman(pub_gen, pub_grp, key_len)
+		# Hash using SHA-512
+		hash = hashlib.sha512()
 
-	# This is where public keys would be exchanged betwee parties
+		# Hash shared secret bytes
+		hash.update(string)
 
-	# Generating shared secret key
-	alice.genkey(bob.public_key)
-	bob.genkey(alice.public_key)
-
-	# alice.showparameters()
-	# alice.showresults()
-	# bob.showparameters()
-	# bob.showresults()
-
-	# Keys match
-	if alice.getkey() == bob.getkey():
-
-		# Print success message
-		print("Shared secret keys match.")
-
-		# Print key
-		print("Key:", hexlify(alice.secret_key))
-
-	# Keys don't match
-	else:
-
-		# Print failure message
-		print("Shared secret keys do not match.")
-
-		# Print each party's secret
-		print("Alice's Secret:", alice.secret)
-		print("Bob's Secret:", bob.secret)
+		# Hash secret key and nonce
+		return hash.digest()
