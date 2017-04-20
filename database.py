@@ -284,9 +284,6 @@ class database():
 			# Decode key
 			key = self.decode(key)
 
-		print('Key Length:', len(key[:24]))
-		print('Key:', key)
-
 		# Configure Triple-DES object using first 24 bytes of key
 		des = pyDes.triple_des(key[:24], padmode=pyDes.PAD_PKCS5)
 

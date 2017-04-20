@@ -40,14 +40,15 @@ def main():
 	print('[SERVER]: Initialization complete.')
 
 	# Start thread to handle the printing of connected users
-	print('[SERVER]: Starting connected users thread...')
 	user_list_thread = Thread(target=print_connected_users)
 	user_list_thread.start()
 
 	# Start thread to handle key assignments
-	print('[SERVER]: Starting key assignment thread...')
 	key_assignment_thread = Thread(target=assign_keys)
 	key_assignment_thread.start()
+
+	# Notify user that server is ready
+	print('[SERVER]: Ready to accept incoming connections.')
 
 	# loop to handle client connections
 	while True:
@@ -56,10 +57,9 @@ def main():
 		(client_socket, address) = server_socket.accept()
 
 		# Print connection information
-		print('[SERVER]: Connection received from', address, '.')
+		print('[SERVER]: Connection received from ', address, '.', sep='')
 
 		# Start thread to handle client connection
-		print('[SERVER]: Starting client connection thread...')
 		client_thread = Thread(target=client_connection, args=(client_socket,address))
 		client_thread.start()
 
@@ -67,8 +67,6 @@ def client_connection(sock, addr):
 	"""
 	Handles client connection with the server
 	"""
-
-	print('[SERVER]: Client connection thread started.')
 
 	# Loop continuously
 	while True:
@@ -93,7 +91,7 @@ def client_connection(sock, addr):
 			if sid == '0' and destination == 'server':
 
 				# Notify user that request has been receieved
-				print('[SERVER]: Receieved Diffie-Hellman request from client.')
+				print('[SERVER]: Receieved Diffie-Hellman request from ', source, '.', sep='')
 
 				# Extract Diffie-Hellman parameters from data
 				generator, prime_group, client_public_key = data.strip().split('++')
@@ -114,7 +112,7 @@ def client_connection(sock, addr):
 				nonce = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(6))
 
 				# Notify user of response being sent
-				print('[SERVER]: Sending Diffie-Hellman response to client.')
+				print('[SERVER]: Sending Diffie-Hellman response to ', source, '.', sep='')
 
 				# Send server's public key, hash of the secret key, and a challenge
 				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:' + str(DH[source].public_key) + '++' + str(hash) + '++' + str(nonce) + '!!sid:1'))
@@ -123,7 +121,7 @@ def client_connection(sock, addr):
 			elif sid == '2' and destination == 'server':
 
 				# Notify user that verification has been receieved
-				print('[SERVER]: Receieved final verification from client.')
+				print('[SERVER]: Receieved final verification from ', source, '.', sep='')
 
 				if not DH[source].versecretkey(data, nonce):
 
@@ -147,8 +145,6 @@ def client_connection(sock, addr):
 				# Print contents of receieved data
 				print('[SERVER]: Source:', source, 'Destination:', destination, 'Data:', data, 'SID:', sid)
 
-				# print('DEBUG:', str(DB.decrypt(DH[source].secret_key, data), 'utf-8'))
-
 				# Verify by decrypting data
 				if str(DB.decrypt(DH[source].secret_key, data), 'utf-8') == 'init':
 
@@ -157,6 +153,7 @@ def client_connection(sock, addr):
 
 						# Create the connection between the two users
 						CONNECTIONS[(source, destination)] = False
+						CONNECTIONS[(destination, source)] = False
 
 						# Encrypt message
 						data = DB.encrypt(DH[source].secret_key, 'online')
@@ -187,8 +184,8 @@ def client_connection(sock, addr):
 					# If it is, continue
 					continue
 
-				# Print contents of receieved data
-				print('[SERVER]: Source:', source, 'Destination:', destination, 'Data:', data, 'SID: ', sid)
+				# # Print contents of receieved data
+				# print('[SERVER]: Source:', source, 'Destination:', destination, 'Data:', data, 'SID: ', sid)
 
 				source_data = DB.decrypt(DH[source].secret_key, data)
 				destination_data = DB.encrypt(DH[destination].secret_key, source_data)
@@ -212,10 +209,7 @@ def client_connection(sock, addr):
 				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:' + data + '!!sid:4'))
 
 		except Exception as exception:
-			exc_type, exc_obj, exc_tb = sys.exc_info()
-			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-			print('Error in', fname, 'line', exc_tb.tb_lineno, '-', exception)
-			# print("[SERVER]: Error:", exception, '.')
+			print("[SERVER]: Error:", exception, '.')
 			break
 
 	sock.close()
@@ -255,9 +249,6 @@ def print_connected_users():
 	global USER_COUNT
 	global CONNECTION_COUNT
 
-	# Notify user of thread starting
-	print('[SERVER]: Connected users thread started.')
-
 	# Loop continuously
 	while True:
 
@@ -279,9 +270,6 @@ def print_connected_users():
 
 def assign_keys():
 
-	# Notify user of thread starting
-	print('[SERVER]: Key assignment thread started.')
-
 	# Loop continuously
 	while True:
 
@@ -289,20 +277,16 @@ def assign_keys():
 		time.sleep(1)
 
 		# For each connection
-		for connection in CONNECTIONS.keys():
+		for (source, destination) in CONNECTIONS.keys():
 
 			# If connection does not have a key assigned
-			if CONNECTIONS[connection] == False:
-
-				# Set source and destination based on connection
-				source = connection[0]
-				destination = connection[1]
+			if CONNECTIONS[(source, destination)] == False:
 
 				# Generate a key
 				key = DB.establish(source, destination)
 
 				# Notify user that a key has been generated
-				print('[SERVER]: Generated key of length ', len(key), ' for ', source, ' and ', destination, '.')
+				print('[SERVER]: Generated key of length ', len(key), ' for ', source, ' and ', destination, '.', sep='')
 
 				# Encrypt key for each user it is to be sent to
 				key_source = DB.encrypt(DH[source].secret_key, key)
@@ -313,7 +297,8 @@ def assign_keys():
 				USERS[destination].sendall(str.encode('s:server!!d:' + destination + '!!data:KEYGEN-' + key_destination + '!!sid:9999'))
 
 				# Set key assignment to true
-				CONNECTIONS[connection] = True
+				CONNECTIONS[(source, destination)] = True
+				CONNECTIONS[(destination, source)] = True
 
 if __name__ == '__main__':
 	main()

@@ -13,7 +13,7 @@ IP = '127.0.0.1'
 PORT = 8888
 
 # Global client variables
-DESTINATION_LOGGED_IN = False
+DESTINATION_ONLINE = False
 SERVER_AUTHENTICATED = False
 LOGGED_IN = False
 CLIENT_KEY = None	# Key shared with destination user
@@ -33,7 +33,7 @@ def main():
 	# Access global variables
 	global LOGGED_IN
 	global SERVER_AUTHENTICATED
-	global DESTINATION_LOGGED_IN
+	global DESTINATION_ONLINE
 	global SERVER_KEY
 	global DH
 
@@ -54,7 +54,7 @@ def main():
 		LOGGED_IN = DB.login(username, password)
 
 	# User was successfully authenticated
-	print('[CLIENT]: Authentication successful.')
+	print('[CLIENT]: User authenticated successfully.')
 
 	# Attempt to connect to server
 	print('[CLIENT]: Attempting to connect to remote server.')
@@ -66,16 +66,11 @@ def main():
 		# Connect to the server
 		client_socket.connect((IP, PORT))
 
-		# Print success message
-		print('[CLIENT]: Connection successful.')
-
-	except Exception as exception:
+	except Exception:
 
 		# Unable to connect
 		print('[CLIENT]: Error: could not connect to ', IP, ':', PORT, '.', sep='')
 		sys.exit()
-
-	print('[CLIENT]: Initiating Diffie-Hellman key exchange.')
 
 	# New psuedorandom object
 	random = SystemRandom()
@@ -92,9 +87,6 @@ def main():
 	# Send Diffie-Hellman key exchange information
 	client_socket.sendall(str.encode('s:' + username + '!!d:server!!data:' + str(generator) + '++' + str(prime_group) + '++' + str(DH.public_key) +'!!sid:0'))
 
-	# Notify user that Diffie-Hellman is being sent
-	print('[CLIENT]: Diffie-Hellman request sent.')
-
 	# Start client receiving thread
 	thread_receive = Thread(target=recv_thread, args=(client_socket, username,))
 	thread_receive.start()
@@ -109,9 +101,7 @@ def main():
 	destination = input('[CLIENT]: Destination username: ')
 
 	# Loop continuously until ready to send messages
-	while not DESTINATION_LOGGED_IN:
-
-		print('[CLIENT]: Sending initialization message.')
+	while not DESTINATION_ONLINE:
 
 		# Encrypt initialization message
 		data = DB.encrypt(SERVER_KEY, 'init')
@@ -134,9 +124,6 @@ def input_thread(sock, username, destination):
 	# Access global variables
 	global CLIENT_KEY
 	global SERVER_KEY
-
-	# Notify user of thread starting
-	print("[CLIENT]: Input thread started.")
 
 	# Loop continuously
 	while True:
@@ -167,13 +154,13 @@ def recv_thread(sock, username):
 
 	# Access global variables
 	global SERVER_AUTHENTICATED
-	global DESTINATION_LOGGED_IN
+	global DESTINATION_ONLINE
 	global CLIENT_KEY
 	global SERVER_KEY
 	global DH
 
-	# Notify user of thread starting
-	print("[CLIENT]: Receiving thread started.")
+	RECEIVED_OFFLINE_RESPONSE = False
+
 	data = ""
 
 	# Loop continuously
@@ -198,9 +185,6 @@ def recv_thread(sock, username):
 			# Diffie-Hellman reply
 			if sid == '1' and source == 'server':
 
-				# Notify user
-				print('[CLIENT]: Received Diffie-Hellman response from server.')
-
 				# Extract Diffie-Hellman response parameters
 				server_public_key, key_hash, nonce = data.strip().split('++')
 
@@ -211,7 +195,7 @@ def recv_thread(sock, username):
 				if not DH.versecretkey(key_hash):
 
 					# Notify user of unsucessful authentication
-					print('[CLIENT]: Failed to verify key.')
+					print('[CLIENT]: Unable to connect to remote server.')
 
 					# End program
 					sys.exit()
@@ -219,7 +203,7 @@ def recv_thread(sock, username):
 				else: # Verification successful
 
 					# Notify user of successful authentication
-					print('[CLIENT]: Key verified.')
+					print('[CLIENT]: Connected to server successfully.')
 
 					# Set global variables
 					SERVER_KEY = DH.secret_key
@@ -227,9 +211,6 @@ def recv_thread(sock, username):
 
 				# Hash nonce with secret key
 				hash = DH.digest(SERVER_KEY, nonce)
-
-				# Notify user of further verification
-				print('[CLIENT]: Sending final verification to server.')
 
 				# Send verification to server
 				sock.sendall(str.encode('s:' + username + '!!' + 'd:server!!' + 'data:' + str(hash) + '!!sid:2'))
@@ -243,13 +224,16 @@ def recv_thread(sock, username):
 					print('[CLIENT]: Destination user is online.')
 
 					# Set global variable
-					DESTINATION_LOGGED_IN = True
+					DESTINATION_ONLINE = True
 
 				# User offline
-				elif str(DB.decrypt(SERVER_KEY, data), 'utf-8') == 'offline':
+				elif str(DB.decrypt(SERVER_KEY, data), 'utf-8') == 'offline' and not RECEIVED_OFFLINE_RESPONSE:
 
 					# Notify user
-					print('[CLIENT]: Destination user is offline.')
+					print('[CLIENT]: Destination user is offline: please wait.')
+
+					# Set boolean that we've received this message before
+					RECEIVED_OFFLINE_RESPONSE = True
 
 			# Check for a key assignment message
 			elif sid == '9999' and source == 'server':
@@ -269,9 +253,6 @@ def recv_thread(sock, username):
 					# Decrypt key using server key
 					CLIENT_KEY = DB.decrypt(SERVER_KEY, CLIENT_KEY)
 
-					# Notify user that a key has been receieved
-					print('[CLIENT]: Received a key of length', len(CLIENT_KEY), 'for communication:', CLIENT_KEY)
-
 					# Continue looping
 					continue
 
@@ -283,10 +264,8 @@ def recv_thread(sock, username):
 
 		# Catch error in receiving data
 		except Exception as exception:
-			exc_type, exc_obj, exc_tb = sys.exc_info()
-			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-			print('Error in', fname, 'line', exc_tb.tb_lineno, '-', exception)
-			# print("[CLIENT]: Error:", exception, '.')
+
+			print('[CLIENT]: Error: lost connection with server.')
 
 			# Exit program
 			sys.exit()
