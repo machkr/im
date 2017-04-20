@@ -43,10 +43,6 @@ def main():
 		# Get username
 		username = input('[CLIENT]: Username: ')
 
-		if username == 'server':
-			print('[CLIENT]: Invalid username: try again.')
-			continue
-
 		# Get password
 		password = getpass('[CLIENT]: Password: ')
 
@@ -70,6 +66,8 @@ def main():
 
 		# Unable to connect
 		print('[CLIENT]: Error: could not connect to ', IP, ':', PORT, '.', sep='')
+
+		# Exit program
 		sys.exit()
 
 	# New psuedorandom object
@@ -263,8 +261,9 @@ def recv_thread(sock, username):
 					continue
 
 		# Catch error in receiving data
-		except Exception as exception:
+		except Exception:
 
+			# Print error
 			print('[CLIENT]: Error: lost connection with server.')
 
 			# Exit program
@@ -295,6 +294,3 @@ def recv_thread(sock, username):
 
 		else:
 			continue
-
-if __name__ == '__main__':
-	main()

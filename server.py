@@ -123,6 +123,7 @@ def client_connection(sock, addr):
 				# Notify user that verification has been receieved
 				print('[SERVER]: Receieved final verification from ', source, '.', sep='')
 
+				# Check received hash against established secret key
 				if not DH[source].versecretkey(data, nonce):
 
 					# Notify user of unsucessful authentication
@@ -158,7 +159,8 @@ def client_connection(sock, addr):
 						# Encrypt message
 						data = DB.encrypt(DH[source].secret_key, 'online')
 
-					else: # Destination user is not connected
+					# Destination user is not connected
+					else: 
 
 						# Encrypt message
 						data = DB.encrypt(DH[source].secret_key, 'offline')
@@ -187,7 +189,10 @@ def client_connection(sock, addr):
 				# # Print contents of receieved data
 				# print('[SERVER]: Source:', source, 'Destination:', destination, 'Data:', data, 'SID: ', sid)
 
+				# Decrypt data received from source
 				source_data = DB.decrypt(DH[source].secret_key, data)
+
+				# Encrypt the data for the destination
 				destination_data = DB.encrypt(DH[destination].secret_key, source_data)
 
 				# Forward data to destination user's socket
@@ -208,9 +213,14 @@ def client_connection(sock, addr):
 				# Send message to client that destination is offline
 				sock.sendall(str.encode('s:server' + '!!' + 'd:' + source + '!!' + 'data:' + data + '!!sid:4'))
 
+		# Catch exception
 		except Exception as exception:
+
+			# Print error
 			print("[SERVER]: Error:", exception, '.')
-			break
+
+			# Exit program
+			sys.exit()
 
 	sock.close()
 
@@ -299,6 +309,3 @@ def assign_keys():
 				# Set key assignment to true
 				CONNECTIONS[(source, destination)] = True
 				CONNECTIONS[(destination, source)] = True
-
-if __name__ == '__main__':
-	main()
