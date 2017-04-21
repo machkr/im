@@ -294,3 +294,6 @@ def recv_thread(sock, username):
 
 		else:
 			continue
+
+if __name__ == '__main__':
+	main()

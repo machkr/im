@@ -309,3 +309,6 @@ def assign_keys():
 				# Set key assignment to true
 				CONNECTIONS[(source, destination)] = True
 				CONNECTIONS[(destination, source)] = True
+
+if __name__ == '__main__':
+	main()
