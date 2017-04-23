@@ -183,9 +183,6 @@ def client_connection(sock, addr):
 					# If it is, continue
 					continue
 
-				# # Print contents of receieved data
-				# print('[SERVER]: Source:', source, 'Destination:', destination, 'Data:', data, 'SID: ', sid)
-
 				# Decrypt data received from source
 				source_data = DB.decrypt(DH[source].secret_key, data)
 
