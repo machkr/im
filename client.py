@@ -207,11 +207,11 @@ def recv_thread(sock, username):
 					SERVER_KEY = DH.secret_key
 					SERVER_AUTHENTICATED = True
 
-				# Hash nonce with secret key
-				hash = DH.digest(SERVER_KEY, nonce)
+					# Hash nonce with secret key
+					hash = DH.digest(SERVER_KEY, nonce)
 
-				# Send verification to server
-				sock.sendall(str.encode('s:' + username + '!!' + 'd:server!!' + 'data:' + str(hash) + '!!sid:2'))
+					# Send verification to server
+					sock.sendall(str.encode('s:' + username + '!!' + 'd:server!!' + 'data:' + str(hash) + '!!sid:2'))
 
 			# Check if destination user is online
 			elif sid == '4' and source =='server':
@@ -267,7 +267,7 @@ def recv_thread(sock, username):
 			print('[CLIENT]: Error: lost connection with server.')
 
 			# Exit program
-			sys.exit()
+			quit()
 
 		# If data exists
 		if (data != "" or data) and source != 'server':

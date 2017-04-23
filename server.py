@@ -143,9 +143,6 @@ def client_connection(sock, addr):
 			# Client-to-client communication initialization
 			elif sid == '3':
 
-				# Print contents of receieved data
-				print('[SERVER]: Source:', source, 'Destination:', destination, 'Data:', data, 'SID:', sid)
-
 				# Verify by decrypting data
 				if str(DB.decrypt(DH[source].secret_key, data), 'utf-8') == 'init':
 
@@ -289,22 +286,34 @@ def assign_keys():
 		# For each connection
 		for (source, destination) in CONNECTIONS.keys():
 
+			# Server entries
+			if source == 'server' or destination == 'server':
+
+				# Skip
+				continue
+
+			# Attempt to generate a key (new or updated)
+			key = DB.establish(source, destination)
+
+			# Key not expired
+			if not key:
+
+				# Skip
+				continue
+
+			# Notify user that a key has been generated
+			print('[SERVER]: Generated key of length ', len(key), ' for ', source, ' and ', destination, '.', sep='')
+
+			# Encrypt key for each user it is to be sent to
+			key_source = DB.encrypt(DH[source].secret_key, key)
+			key_destination = DB.encrypt(DH[destination].secret_key, key)
+
+			# Send the negotiated key to each user
+			USERS[source].sendall(str.encode('s:server!!d:' + source + '!!data:KEYGEN-' + key_source + '!!sid:9999'))
+			USERS[destination].sendall(str.encode('s:server!!d:' + destination + '!!data:KEYGEN-' + key_destination + '!!sid:9999'))
+
 			# If connection does not have a key assigned
-			if CONNECTIONS[(source, destination)] == False:
-
-				# Generate a key
-				key = DB.establish(source, destination)
-
-				# Notify user that a key has been generated
-				print('[SERVER]: Generated key of length ', len(key), ' for ', source, ' and ', destination, '.', sep='')
-
-				# Encrypt key for each user it is to be sent to
-				key_source = DB.encrypt(DH[source].secret_key, key)
-				key_destination = DB.encrypt(DH[destination].secret_key, key)
-
-				# Send the negotiated key to each user
-				USERS[source].sendall(str.encode('s:server!!d:' + source + '!!data:KEYGEN-' + key_source + '!!sid:9999'))
-				USERS[destination].sendall(str.encode('s:server!!d:' + destination + '!!data:KEYGEN-' + key_destination + '!!sid:9999'))
+			if not CONNECTIONS[(source, destination)]:
 
 				# Set key assignment to true
 				CONNECTIONS[(source, destination)] = True

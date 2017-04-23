@@ -155,33 +155,32 @@ class database():
 				if conversation_id != '':
 
 					# Get key corresponding to conversation
-					self.cursor.callproc('get_key', (conversation_id,))
+					self.cursor.callproc('get_time', (conversation_id,))
 
 					# Retrieve result from procedure
 					result = self.cursor.fetchone()
-					key = result[0]
 
 					# If key has expired (30 second expiration)
-					if (datetime.now() - result[1] > timedelta(seconds=30)):
+					if (datetime.now() - result[0] > timedelta(seconds=30)):
 						
-						# Generate a new key (24 bytes/192 bits)
-						new_key = urandom(24)
+						# Generate an updated key (24 bytes/192 bits)
+						updated_key = urandom(24)
 						
 						# Update conversation's key
-						self.cursor.callproc('update_key', 
-							(conversation_id, new_key,))
+						self.cursor.callproc('update_time', 
+							(conversation_id,))
 						
 						# Commit changes to database
 						self.database.commit()
 
 						# Return newly-generated key
-						return new_key
+						return updated_key
 
 					# Key has not expired
 					else: 
 
-						# Return existing key
-						return key	
+						# Return nothing
+						return None	
 
 				else: # Conversation does not exist
 
@@ -189,17 +188,17 @@ class database():
 					id = urandom(24)
 
 					# Generate shared key (24 bytes/192 bits)
-					key = urandom(24)
+					new_key = urandom(24)
 
 					# Create conversation between users
 					self.cursor.callproc('create_conversation', 
-						(id, username_x, username_y, key,))
+						(id, username_x, username_y,))
 
 					# Commit changes to database
 					self.database.commit()
 
 					# Return key
-					return key
+					return new_key
 
 			# One or both users do not exist
 			else:
