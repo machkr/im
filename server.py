@@ -48,7 +48,7 @@ def main():
 	key_assignment_thread.start()
 
 	# Notify user that server is ready
-	print('[SERVER]: Ready to accept incoming connections.')
+	print('[SERVER]: Ready to accept connections.')
 
 	# loop to handle client connections
 	while True:
