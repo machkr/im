@@ -50,7 +50,7 @@ def main():
 		LOGGED_IN = DB.login(username, password)
 
 	# Attempt to connect to server
-	print('[CLIENT]: Attempting to connect to remote server.')
+	print('[CLIENT]: Connecting to server...')
 
 	# Create socket for client
 	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -93,7 +93,7 @@ def main():
 		time.sleep(1)
 
 	# Request username of user to communicate with
-	destination = input('[CLIENT]: Destination username: ')
+	destination = input('[CLIENT]: Destination: ')
 
 	# Loop continuously until ready to send messages
 	while not DESTINATION_ONLINE:
@@ -190,7 +190,7 @@ def recv_thread(sock, username):
 				if not DH.versecretkey(key_hash):
 
 					# Notify user of unsucessful authentication
-					print('[CLIENT]: Unable to connect to remote server.')
+					print('[CLIENT]: Unable to connect.')
 
 					# End program
 					sys.exit()
@@ -198,7 +198,7 @@ def recv_thread(sock, username):
 				else: # Verification successful
 
 					# Notify user of successful authentication
-					print('[CLIENT]: Connected to server successfully.')
+					print('[CLIENT]: Connection successful.')
 
 					# Set global variables
 					SERVER_KEY = DH.secret_key
@@ -225,7 +225,7 @@ def recv_thread(sock, username):
 				elif str(DB.decrypt(SERVER_KEY, data), 'utf-8') == 'offline' and not RECEIVED_OFFLINE_RESPONSE:
 
 					# Notify user
-					print('[CLIENT]: Destination user is offline: please wait.')
+					print('[CLIENT]: Destination user is offline.')
 
 					# Set boolean that we've received this message before
 					RECEIVED_OFFLINE_RESPONSE = True
