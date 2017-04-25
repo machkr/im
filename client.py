@@ -136,7 +136,7 @@ def input_thread(sock, username, destination):
 		# Encrypt with key shared between client and server
 		ciphertext = DB.encrypt(SERVER_KEY, ciphertext)
 
-		# Send encrypted message -- had .encode before
+		# Send encrypted message
 		sock.sendall(str.encode('s:' + username + '!!' + 'd:' + destination + '!!' + 'data:' + ciphertext + '!!sid:5'))
 
 	# Close socket
@@ -153,7 +153,7 @@ def recv_thread(sock, username):
 	global CLIENT_KEY
 	global SERVER_KEY
 	global DH
-
+	
 	RECEIVED_OFFLINE_RESPONSE = False
 
 	data = ""

@@ -211,7 +211,7 @@ def client_connection(sock, addr):
 		except Exception as exception:
 
 			# Print error
-			print("[SERVER]: Error:", exception, '.')
+			print('[SERVER]: User has disconnected.')
 
 			# Exit program
 			sys.exit()
