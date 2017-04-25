@@ -49,9 +49,6 @@ def main():
 		# Attempt to log in
 		LOGGED_IN = DB.login(username, password)
 
-	# User was successfully authenticated
-	print('[CLIENT]: User authenticated successfully.')
-
 	# Attempt to connect to server
 	print('[CLIENT]: Attempting to connect to remote server.')
 
