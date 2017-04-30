@@ -121,7 +121,7 @@ class database():
 		except Exception as exception:
 
 			# Print exception
-			print('[C]:', exception)
+			print('[CLIENT]:', exception)
 
 			# Return result
 			return False
@@ -211,63 +211,6 @@ class database():
 
 			# Print exception
 			print('[SERVER]:', exception)
-
-			# Return result
-			return None
-
-	def retrieve(self, username_x, username_y):
-		"""
-		Retrieves a stored key for a conversation.
-		To be used for decryption and receiving messages.
-		"""
-
-		try:
-			# Check if users exist
-			self.cursor.callproc('check_users', 
-				(username_x, username_y,))
-
-			# Retrieve result from procedure
-			result = self.cursor.fetchone()
-
-			# Users exist
-			if result[0] == 'TRUE':
-
-				# Get conversation ID, if one exists
-				self.cursor.callproc('get_conversation_id', 
-					(username_x, username_y,))
-
-				# Retrieve result from procedure
-				result = self.cursor.fetchone()
-
-				# Conversation exists
-				if result[0] != '':
-
-					# Get key corresponding to conversation
-					self.cursor.callproc('get_key', (result[0],))
-
-					# Retrieve result from procedure
-					result = self.cursor.fetchone()
-
-					# Return key
-					return result[0]
-
-				# Conversation does not exist
-				else:
-
-					# Raise exception
-					raise ValueError("Conversation does not exist.")
-
-			# One or both users do not exist
-			else:
-
-				# Raise exception
-				raise ValueError("User does not exist.")
-
-		# Catch any exception raised
-		except Exception as exception:
-
-			# Print exception
-			print(exception)
 
 			# Return result
 			return None
